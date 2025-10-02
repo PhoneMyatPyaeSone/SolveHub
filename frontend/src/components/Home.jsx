@@ -1,8 +1,11 @@
-import Header from "./Header";
+import Welcome from "./Welcome";
 import PopularCategory from "./PopularCategory";
 
-export default function Event() {
+export default function Home() {
     return(
-        <PopularCategory />
+        <>
+            <Welcome />
+            <PopularCategory />
+        </>
     )
 }

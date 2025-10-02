@@ -26,10 +26,10 @@ export default function NavBar() {
                     </NavLink>
                 </li>
                 <li>
-                    <NavLink to="/events"
+                    <NavLink to="/blogs"
                     className={({ isActive }) => isActive ? 'text-blue-600 font-bold' : 'text-gray-700'}
                     >
-                        Events
+                        Blogs
                     </NavLink>
                 </li>
             </ul>
