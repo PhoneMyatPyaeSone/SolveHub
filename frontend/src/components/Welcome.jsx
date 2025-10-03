@@ -4,7 +4,7 @@ export default function Welcome() {
     return(
         <section className="px-4 py-12 bg-blue-600 text-white text-center">
         <div className="max-w-2xl mx-auto space-y-4">
-            <h1 className="text-3xl font-bold">Welcome From SolveHub</h1>
+            <h1 className="text-3xl font-bold">Welcome To SolveHub</h1>
             <h5 className="text-lg font-light">
             Connect, discuss, and share knowledge with like-minded individuals
             </h5>
