@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
-export default function NavBar() {
+export default function NavBar({ mobileButtons }) {
   const [open, setOpen] = useState(false);
 
   const links = [
@@ -40,12 +40,19 @@ export default function NavBar() {
                   ? "text-blue-600 font-bold"
                   : "text-gray-700 hover:text-blue-600"
               }
-              onClick={() => setOpen(false)} // close menu on mobile link click
+              onClick={() => setOpen(false)}
             >
               {link.name}
             </NavLink>
           </li>
         ))}
+
+        {/* Render mobile buttons inside the menu */}
+        {mobileButtons && open && (
+          <li className="px-4 py-2">
+            <div className="inline-flex flex-col gap-2">{mobileButtons}</div>
+          </li>
+        )}
       </ul>
     </nav>
   );

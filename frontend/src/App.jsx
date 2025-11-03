@@ -8,6 +8,7 @@ import Discussions from './pages/Discussion'
 import Home from './pages/Home'
 import Footer from './components/Footer';
 
+
 function App() {
   return (
     <BrowserRouter>
@@ -20,7 +21,6 @@ function App() {
         <Route path='/login' element={<Login/>} />
         <Route path='/register' element={<Register/>} />
       </Routes>
-      <Footer />
     </BrowserRouter>
   )
 }

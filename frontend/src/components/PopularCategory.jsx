@@ -13,6 +13,7 @@ export default function PopularCategory() {
         setTopics(prevTopic => [...prevTopic, "New Topic"])
 
     }
+    
     return(
         <section className="shadow-lg rounded-lg p-3 bg-white w-full">
             <div className="flex">
