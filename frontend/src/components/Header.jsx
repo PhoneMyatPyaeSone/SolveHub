@@ -1,48 +1,89 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import NavBar from "./NavBar";
 
 export default function Header() {
+  const { isAuthenticated, logout, loading } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+    alert("✅ Logged out successfully!");
+  };
+
+  // Don't render auth buttons while checking authentication
+  if (loading) {
+    return (
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="text-2xl font-bold text-blue-600">SolveHub</div>
+            <div>Loading...</div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // Mobile buttons for non-authenticated users
+  const mobileButtons = !isAuthenticated ? (
+    <>
+      <button
+        onClick={() => navigate("/login")}
+        className="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition duration-200"
+      >
+        Sign In
+      </button>
+      <button
+        onClick={() => navigate("/register")}
+        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
+      >
+        Register
+      </button>
+    </>
+  ) : null;
+
   return (
-    <header className="bg-white border-b border-gray-200">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center p-4 gap-3">
-        {/* Logo */}
-        <div className="text-xl font-bold text-gray-800">SolveHub</div>
+    <header className="bg-white shadow-sm">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <div className="text-2xl font-bold text-blue-600 cursor-pointer" onClick={() => navigate("/")}>
+            SolveHub
+          </div>
 
-        {/* NavBar with mobile buttons */}
-        <NavBar
-            mobileButtons={
-                <div className="flex flex-col gap-2 w-auto">
-                <Link
-                    to="/login"
-                    className="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition duration-200 w-auto"
+          {/* Navigation */}
+          <NavBar mobileButtons={mobileButtons} />
+
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center gap-4">
+            {isAuthenticated ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-700 transition duration-200"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition duration-200"
                 >
-                    Sign In
-                </Link>
-                <Link
-                    to="/register"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 w-auto"
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigate("/register")}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
                 >
-                    Register
-                </Link>
-                </div>
-            }
-        />
-
-
-        {/* Desktop buttons */}
-        <div className="hidden md:flex space-x-3">
-          <Link
-            to="/login"
-            className="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition duration-200"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/register"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
-          >
-            Register
-          </Link>
+                  Register
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

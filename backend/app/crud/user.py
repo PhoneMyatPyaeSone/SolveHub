@@ -30,23 +30,21 @@ def create_user(db: Session, user: UserCreate) -> User:
     db.refresh(db_user)
     return db_user
 
-def authenticate_user(db: Session, username_or_email: str, password: str) -> Optional[User]:
-    """Authenticate user with username/email and password"""
+def authenticate_user(db: Session, email_or_username: str, password: str):
+    """Authenticate user by email or username"""
     # Try to find user by email first
-    user = get_user_by_email(db, username_or_email)
+    user = get_user_by_email(db, email=email_or_username)
     
-    # If not found by email, try by username
+    # If not found, try username
     if not user:
-        user = get_user_by_username(db, username_or_email)
+        user = get_user_by_username(db, username=email_or_username)
     
-    # If still not found, authentication failed
     if not user:
         return None
-        
-    # Verify password
+    
     if not verify_password(password, user.hashed_password):
         return None
-        
+    
     return user
 
 def update_user(db: Session, user_id: int, user_update: UserUpdate) -> Optional[User]:

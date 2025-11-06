@@ -1,8 +1,51 @@
 import { FaComments, FaHeartbeat, FaLaptopCode, FaChartLine, FaGraduationCap, FaUser } from "react-icons/fa";
+import { useState, useEffect } from "react";
 import DiscussionSearch from "../components/DiscussionSearch";
-import DiscussionCard from "../components/DicussionCard";
+import DiscussionCard from "../components/DicussionCard"
+import DiscussionForm from "../components/DiscussionForm";
+import api from "../api/axios";
+
 
 export default function Discussions() {
+    const [discussions, setDiscussions] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+
+    useEffect(() => {
+        fetchDiscussions();
+    }, [selectedCategory]);
+
+    const fetchDiscussions = async () => {
+        try {
+        setLoading(true);
+        const response = await api.get("/discussions", {
+            params: selectedCategory ? { category: selectedCategory } : {},
+        });
+        setDiscussions(response.data);
+        } catch (error) {
+        console.error("Error fetching discussions:", error);
+        } finally {
+        setLoading(false);
+        }
+    };
+    const categories = [
+        { label: "General Discussions", value: "General" },
+        { label: "Technology", value: "Technology" },
+        { label: "Education", value: "Education" },
+        { label: "Health & Wellness", value: "Health" },
+        { label: "Business", value: "Business" },
+    ];
+
+    const handleNewDiscussion = () => {
+        setShowForm((prev) => !prev);   
+    };
+
+    const handleDiscussionCreated = (newDiscussion) => {
+        setDiscussions([newDiscussion, ...discussions]);
+        setShowForm(false);
+    };
+
   return (
     <section className="p-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -11,25 +54,17 @@ export default function Discussions() {
         <div className="md:w-1/4 flex flex-col gap-2 bg-white p-4 rounded-lg shadow-md">
             <div className="text-lg font-bold text-gray-600">Category</div>
 
-            <div className="p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer">
-                <FaComments /> General Discussions
-            </div>
-
-            <div className="p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer">
-                <FaLaptopCode /> Technology
-            </div>
-
-            <div className="p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer">
-                <FaGraduationCap /> Education
-            </div>
-
-            <div className="p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer">
-                <FaHeartbeat /> Health & Wellness
-            </div>
-
-            <div className="p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer">
-                <FaChartLine /> Business
-            </div>
+            {categories.map((cat) => (
+                <div
+                key={cat.value}
+                className={`p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer ${
+                    selectedCategory === cat.value ? "bg-blue-200 text-blue-800 font-semibold" : ""
+                }`}
+                onClick={() => setSelectedCategory(cat.value)}
+                >
+                <FaComments /> {cat.label}
+                </div>
+            ))}
 
             <div className="text-lg font-bold text-gray-600 mt-3">Popular Tags</div>
 
@@ -74,11 +109,20 @@ export default function Discussions() {
 
         {/* Right blocks horizontally stacked */}
         <div className="md:w-3/4 flex flex-col gap-4">
-            <DiscussionSearch />
-            <DiscussionCard />
-            <DiscussionCard />
-            <DiscussionCard />
-
+            <DiscussionSearch onNewDiscussionClick={handleNewDiscussion}/>
+            
+            {showForm && <DiscussionForm onCreated={handleDiscussionCreated} />}
+            {
+                loading ? (
+                <div className="text-center text-gray-500 py-8">Loading discussions...</div>
+            ) : discussions.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">No discussions found.</div>
+            ) : (
+                discussions.map((discussion) => (
+                <DiscussionCard key={discussion.id} discussion={discussion} />
+                ))
+            )
+            }
             {/* Pagination */}
             <div className="flex justify-center gap-2 mt-4">
                 {[1, 2, 3, 4, 5].map((page) => (

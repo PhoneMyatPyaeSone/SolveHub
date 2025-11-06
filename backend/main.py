@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth_router, users_router
-from app.database import engine
-from app.models import user
+from app.routers import auth_router, users_router, discussions_router
+from app.database import engine, Base
+
+# Import models so SQLAlchemy knows about them
+from app.models.user import User
+from app.models.discussions import Discussion
 
 # Create database tables
-user.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SolveHub API",
@@ -16,7 +19,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Add your frontend URL
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,6 +28,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(discussions_router)
 
 @app.get("/")
 def read_root():

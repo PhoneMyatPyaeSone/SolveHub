@@ -1,6 +1,6 @@
 import { FaSearch, FaPlus } from "react-icons/fa";
 
-export default function DiscussionSearch() {
+export default function DiscussionSearch({ onNewDiscussionClick }) {
   return (
     <div className="bg-white p-4 rounded-lg shadow-md flex flex-col gap-4">
 
@@ -45,7 +45,10 @@ export default function DiscussionSearch() {
 
         {/* New Discussion Button */}
         <div className="mt-2 md:mt-0">
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm w-auto">
+          <button 
+            onClick={onNewDiscussionClick}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm w-auto"
+          >
             <FaPlus size={12} /> New Discussion
           </button>
         </div>

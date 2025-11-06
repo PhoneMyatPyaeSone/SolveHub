@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { Menu, X, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function NavBar({ mobileButtons }) {
   const [open, setOpen] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
 
   const links = [
     { name: "Home", to: "/" },
@@ -11,6 +14,13 @@ export default function NavBar({ mobileButtons }) {
     { name: "Members", to: "/members" },
     { name: "Blogs", to: "/blogs" },
   ];
+
+  const handleLogout = () => {
+    logout();
+    setOpen(false);
+    navigate("/");
+    alert("✅ Logged out successfully!");
+  };
 
   return (
     <nav className="relative">
@@ -47,10 +57,20 @@ export default function NavBar({ mobileButtons }) {
           </li>
         ))}
 
-        {/* Render mobile buttons inside the menu */}
-        {mobileButtons && open && (
-          <li className="px-4 py-2">
-            <div className="inline-flex flex-col gap-2">{mobileButtons}</div>
+        {/* Show logout button if authenticated, otherwise show login/register in mobile */}
+        {open && (
+          <li className="px-4 py-2 md:hidden">
+            {isAuthenticated ? (
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            ) : (
+              mobileButtons && <div className="flex flex-col gap-2">{mobileButtons}</div>
+            )}
           </li>
         )}
       </ul>
