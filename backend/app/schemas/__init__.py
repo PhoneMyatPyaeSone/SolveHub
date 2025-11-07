@@ -13,6 +13,12 @@ from app.schemas.discussions import (
     DiscussionUpdate,
     DiscussionOut
 )
+from app.schemas.blogs import (
+    BlogBase,
+    BlogCreate,
+    BlogUpdate,
+    BlogOut
+)
 
 __all__ = [
     "UserBase",
@@ -25,5 +31,9 @@ __all__ = [
     "DiscussionBase",
     "DiscussionCreate",
     "DiscussionUpdate",
-    "DiscussionOut"
+    "DiscussionOut",
+    "BlogBase",
+    "BlogCreate",
+    "BlogUpdate",
+    "BlogOut"
 ]

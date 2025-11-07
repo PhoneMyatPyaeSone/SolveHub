@@ -18,7 +18,19 @@ from app.crud.discussions import (
     search_discussions
 )
 
-# Export everything so it can be imported as crud.create_discussion
+from app.crud.blogs import (
+    create_blog,
+    get_all_blogs,
+    get_blog,
+    update_blog,
+    delete_blog,
+    get_user_blogs,
+    search_blogs,
+    publish_blog,
+    unpublish_blog
+)
+
+# Export everything so it can be imported as crud.create_blog
 __all__ = [
     "get_user_by_email",
     "get_user_by_username",
@@ -33,5 +45,14 @@ __all__ = [
     "update_discussion",
     "delete_discussion",
     "get_user_discussions",
-    "search_discussions"
+    "search_discussions",
+    "create_blog",
+    "get_all_blogs",
+    "get_blog",
+    "update_blog",
+    "delete_blog",
+    "get_user_blogs",
+    "search_blogs",
+    "publish_blog",
+    "unpublish_blog"
 ]
