@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import api from '../api/axios';
 
 const AuthContext = createContext(null);
 
@@ -12,16 +13,41 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
-      // You can decode the token here to get user info if needed
-      // For now, we'll just set authenticated to true
+      // Fetch user data from backend
+      fetchUserData(token);
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  const login = (token, userData = null) => {
+  const fetchUserData = async (token) => {
+    try {
+      const response = await api.get('/users/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setUser(response.data);
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+      // If token is invalid, clear it
+      localStorage.removeItem('token');
+      setIsAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (token, userData = null) => {
     localStorage.setItem('token', token);
     setIsAuthenticated(true);
-    setUser(userData);
+    
+    if (userData) {
+      setUser(userData);
+    } else {
+      // Fetch user data from backend if not provided
+      await fetchUserData(token);
+    }
   };
 
   const logout = () => {
@@ -36,6 +62,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
+    setUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

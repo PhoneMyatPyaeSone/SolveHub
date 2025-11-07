@@ -1,4 +1,4 @@
-#!/home/san/SolveHub/backend/.venv/bin/python3
+#!/Users/phonemyatpyaesone/Desktop/SolveHub/backend/.venv/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys

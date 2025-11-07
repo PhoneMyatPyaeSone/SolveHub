@@ -47,7 +47,7 @@ export default function Login() {
       login(token);
       
       alert("✅ Login successful!");
-      navigate("/members");
+      navigate("/");
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || "Invalid email or password");
