@@ -1,17 +1,51 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "../api/axios";
 
 export default function PopularCategory() {
-    const [topics, setTopics] = useState([
-        { title: "Technology", posts: 12, topics: 5 },
-        { title: "Health & Wellness", posts: 8, topics: 3 },
-        { title: "Art & Culture", posts: 5, topics: 2 },
-        { title: "Sport", posts: 20, topics: 10 },
-    ])
+    const [topics, setTopics] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchPopularCategories();
+    }, []);
+
+    const fetchPopularCategories = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get("/discussions");
+            
+            // Count discussions by category
+            const categoryCount = {};
+            response.data.forEach(discussion => {
+                const category = discussion.category || "General";
+                if (!categoryCount[category]) {
+                    categoryCount[category] = { category, count: 0 };
+                }
+                categoryCount[category].count++;
+            });
+            
+            // Get top 5 categories
+            const topCategories = Object.values(categoryCount)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5)
+                .map(item => ({
+                    title: item.category,
+                    posts: item.count,
+                    topics: Math.ceil(item.count / 3) // Estimate topics
+                }));
+            
+            setTopics(topCategories);
+        } catch (error) {
+            console.error("Error fetching categories:", error);
+            setTopics([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     function addNewTopic(){
-        setTopics(prevTopic => [...prevTopic, "New Topic"])
-
+        setTopics(prevTopic => [...prevTopic, { title: "New Topic", posts: 0, topics: 0 }])
     }
     
     return(
@@ -27,7 +61,11 @@ export default function PopularCategory() {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4 p-0">
-                {
+                {loading ? (
+                    <div className="col-span-2 text-center text-gray-500 py-4">Loading categories...</div>
+                ) : topics.length === 0 ? (
+                    <div className="col-span-2 text-center text-gray-500 py-4">No categories found</div>
+                ) : (
                     topics.map((topic, index) => {
                         return(
                             <div 
@@ -42,7 +80,7 @@ export default function PopularCategory() {
                             </div>
                         )
                     })
-                }
+                )}
             </div>
 
         </section>

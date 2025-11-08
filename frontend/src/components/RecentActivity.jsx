@@ -1,21 +1,52 @@
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
+import api from "../api/axios";
 
 export default function RecentActivity() {
-    const [statistics] = useState([
-                { name: "Alex Johnson", activity: "joined the forum", status: '10 minutes ago' },
-                { name: "Alex Johnson", activity: 'replied to "Web peformance tips', status: '1 hour ago' },
-                { name: "Alex Johnson", activity: 'recieved 50 likes', status: '30 minutes ago' },
-            ]);
+    const [statistics, setStatistics] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchRecentActivity();
+    }, []);
+
+    const fetchRecentActivity = async () => {
+        try {
+            setLoading(true);
+            
+            // Fetch recent discussions
+            const discussionsResponse = await api.get("/discussions", {
+                params: { skip: 0, limit: 100 }
+            });
+
+            // Format recent activities
+            const recentActivities = discussionsResponse.data.slice(0, 3).map((discussion, index) => ({
+                name: discussion.author?.full_name || "Unknown User",
+                activity: `posted "${discussion.title.substring(0, 30)}..."`,
+                status: '10 minutes ago'
+            }));
+
+            setStatistics(recentActivities);
+        } catch (error) {
+            console.error("Error fetching recent activity:", error);
+            setStatistics([]);
+        } finally {
+            setLoading(false);
+        }
+    };
     
-        return(
-            <section className="bg-white shadow-lg rounded-lg w-full">
-            <div className="px-4 pt-4 pb-2 text-xl font-bold text-gray-800">
-                Recent Activity
-            </div>
-    
-            <div className="flex flex-col">
-            {statistics.map((item, index) => (
+    return(
+        <section className="bg-white shadow-lg rounded-lg w-full">
+        <div className="px-4 pt-4 pb-2 text-xl font-bold text-gray-800">
+            Recent Activity
+        </div>
+
+        <div className="flex flex-col">
+        {loading ? (
+            <div className="px-4 py-4 text-center text-gray-500">Loading...</div>
+        ) : statistics.length === 0 ? (
+            <div className="px-4 py-4 text-center text-gray-500">No recent activity</div>
+        ) : (
+            statistics.map((item, index) => (
               <div
                 key={index}
                 className="flex justify-between items-center px-4 py-2 text-sm text-gray-700"
@@ -27,8 +58,9 @@ export default function RecentActivity() {
                 
                 <span className= "px-2 py-1 text-xs text-gray-700"> {item.activity} </span>
               </div>
-            ))}
-            </div>
-            </section>
-        )
+            ))
+        )}
+        </div>
+        </section>
+    )
 }

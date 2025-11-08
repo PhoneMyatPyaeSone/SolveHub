@@ -16,3 +16,5 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     discussions = relationship("Discussion", back_populates="author", cascade="all, delete")
     blogs = relationship("Blog", back_populates="author", cascade="all, delete")
+    votes = relationship("Vote", back_populates="user", cascade="all, delete")
+

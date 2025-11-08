@@ -3,6 +3,16 @@ from typing import List, Optional
 from datetime import datetime
 import json
 
+class AuthorOut(BaseModel):
+    """Author information for discussions"""
+    id: int
+    full_name: str
+    username: str
+    email: str
+
+    class Config:
+        from_attributes = True
+
 class DiscussionBase(BaseModel):
     title: str
     content: str
@@ -25,6 +35,7 @@ class DiscussionOut(BaseModel):
     category: Optional[List[str]] = None
     tags: Optional[List[str]] = None
     user_id: int
+    author: Optional[AuthorOut] = None
     votes: int
     views: int
     created_at: datetime
@@ -51,6 +62,18 @@ class DiscussionOut(BaseModel):
             except:
                 return []
         return v if v else []
+
+    @field_validator('votes', mode='before')
+    @classmethod
+    def parse_votes(cls, v):
+        """Convert None to 0"""
+        return v if v is not None else 0
+
+    @field_validator('views', mode='before')
+    @classmethod
+    def parse_views(cls, v):
+        """Convert None to 0"""
+        return v if v is not None else 0
 
     class Config:
         from_attributes = True

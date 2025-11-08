@@ -32,8 +32,9 @@ def get_all_members_statistics(db: Session = Depends(get_db)):
         members_data.append({
             "id": member.id,
             "username": member.username,
-            "full_name": member.full_name,
+            "name": member.full_name,
             "email": member.email,
+            "post_count": discussion_count,
             "posts": discussion_count,
             "votes": total_votes,
             "views": total_views,

@@ -22,7 +22,7 @@ export default function Discussions() {
     
     useEffect(() => {
         fetchDiscussions();
-    }, [selectedCategory, currentPage]);
+    }, [selectedCategory]);
 
     useEffect(() => {
         fetchPopularTags();
@@ -32,21 +32,15 @@ export default function Discussions() {
     const fetchDiscussions = async () => {
         try {
             setLoading(true);
-            const skip = (currentPage - 1) * ITEMS_PER_PAGE;
             const response = await api.get("/discussions", {
                 params: {
                     ...(selectedCategory ? { category: selectedCategory } : {}),
-                    skip: skip,
-                    limit: ITEMS_PER_PAGE
+                    skip: 0,
+                    limit: 1000  // Get many discussions at once
                 },
             });
             setDiscussions(response.data);
-            
-            if (response.data.length < ITEMS_PER_PAGE) {
-                setTotalPages(currentPage);
-            } else {
-                setTotalPages(currentPage + 1);
-            }
+            setCurrentPage(1);
         } catch (error) {
             console.error("Error fetching discussions:", error);
         } finally {
@@ -174,6 +168,15 @@ export default function Discussions() {
         return pages;
     };
 
+    // Get paginated discussions for display
+    const paginatedDiscussions = discussions.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    // Calculate total pages based on all discussions
+    const calculatedTotalPages = Math.ceil(discussions.length / ITEMS_PER_PAGE);
+
     return (
         <section className="p-4">
             <div className="flex flex-col md:flex-row gap-4">
@@ -251,7 +254,7 @@ export default function Discussions() {
                         <div className="text-center text-gray-500 py-8">No discussions found.</div>
                     ) : (
                         <>
-                            {discussions.map((discussion) => (
+                            {paginatedDiscussions.map((discussion) => (
                                 <DiscussionCard 
                                     key={discussion.id} 
                                     discussion={discussion} 
@@ -261,7 +264,7 @@ export default function Discussions() {
                             ))}
                             
                             <div className="text-center text-gray-500 text-sm">
-                                Page {currentPage} of {totalPages}
+                                Page {currentPage} of {calculatedTotalPages}
                             </div>
                         </>
                     )}
@@ -297,9 +300,9 @@ export default function Discussions() {
 
                             <button
                                 onClick={handleNextPage}
-                                disabled={discussions.length < ITEMS_PER_PAGE}
+                                disabled={currentPage >= calculatedTotalPages}
                                 className={`px-3 py-1 rounded transition ${
-                                    discussions.length < ITEMS_PER_PAGE
+                                    currentPage >= calculatedTotalPages
                                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                         : 'bg-gray-200 text-black hover:bg-blue-500 hover:text-white'
                                 }`}

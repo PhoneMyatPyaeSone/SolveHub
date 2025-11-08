@@ -18,6 +18,7 @@ class Discussion(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     author = relationship("User", back_populates="discussions")
+    vote_records = relationship("Vote", back_populates="discussion", cascade="all, delete-orphan")
 
     def set_category(self, category_list):
         """Convert list to JSON string"""
