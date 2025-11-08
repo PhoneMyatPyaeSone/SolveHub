@@ -11,9 +11,8 @@ export const AuthProvider = ({ children }) => {
   // Check if user is logged in on mount
   useEffect(() => {
     const token = localStorage.getItem('token');
+    console.log('Token on mount:', token); // Debug
     if (token) {
-      setIsAuthenticated(true);
-      // Fetch user data from backend
       fetchUserData(token);
     } else {
       setLoading(false);
@@ -22,28 +21,34 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserData = async (token) => {
     try {
+      console.log('Fetching user data with token:', token); // Debug
       const response = await api.get('/users/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      console.log('User data received:', response.data); // Debug
       setUser(response.data);
+      setIsAuthenticated(true); // Set this AFTER successful fetch
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       // If token is invalid, clear it
       localStorage.removeItem('token');
       setIsAuthenticated(false);
+      setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (token, userData = null) => {
+    console.log('Login called with token:', token, 'userData:', userData); // Debug
     localStorage.setItem('token', token);
-    setIsAuthenticated(true);
     
     if (userData) {
       setUser(userData);
+      setIsAuthenticated(true);
+      setLoading(false);
     } else {
       // Fetch user data from backend if not provided
       await fetchUserData(token);

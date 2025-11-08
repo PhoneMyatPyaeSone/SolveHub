@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
-export default function DiscussionForm({ onCreated }) {
+export default function DiscussionForm({ onCreated, onUpdated, editingDiscussion, onCancel }) {
   const { user, isAuthenticated } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -10,6 +10,18 @@ export default function DiscussionForm({ onCreated }) {
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const isEditMode = !!editingDiscussion;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingDiscussion) {
+      setTitle(editingDiscussion.title || "");
+      setContent(editingDiscussion.content || "");
+      setCategory(editingDiscussion.category?.[0] || "");
+      setTags(editingDiscussion.tags?.join(", ") || "");
+    }
+  }, [editingDiscussion]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,32 +35,55 @@ export default function DiscussionForm({ onCreated }) {
       setError("");
 
       const token = localStorage.getItem("token");
-      const response = await api.post(
-        "/discussions/",
-        {
-          title,
-          content,
-          category: category ? [category] : [],
-          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-        },
-        {
+      const payload = {
+        title,
+        content,
+        category: category ? [category] : [],
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      };
+
+      if (isEditMode) {
+        // Update existing discussion
+        const response = await api.put(
+          `/discussions/${editingDiscussion.id}`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (onUpdated) onUpdated(response.data);
+      } else {
+        // Create new discussion
+        const response = await api.post("/discussions/", payload, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
-      );
+        });
+        if (onCreated) onCreated(response.data);
+      }
 
-      onCreated(response.data); // Add new discussion to list
+      // Reset form
       setTitle("");
       setContent("");
       setCategory("");
       setTags("");
     } catch (err) {
-      console.error("Error creating discussion:", err);
-      setError("Failed to create discussion. Try again.");
+      console.error("Error saving discussion:", err);
+      setError(`Failed to ${isEditMode ? "update" : "create"} discussion. Try again.`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    setTitle("");
+    setContent("");
+    setCategory("");
+    setTags("");
+    setError("");
+    if (onCancel) onCancel();
   };
 
   const categories = [
@@ -62,7 +97,7 @@ export default function DiscussionForm({ onCreated }) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-xl font-bold text-gray-700 mb-4">
-        Create New Discussion
+        {isEditMode ? "Edit Discussion" : "Create New Discussion"}
       </h2>
 
       {error && <div className="text-red-500 mb-2">{error}</div>}
@@ -111,14 +146,23 @@ export default function DiscussionForm({ onCreated }) {
           className="border p-2 rounded focus:ring-2 focus:ring-blue-300"
         />
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-        >
-          {loading ? "Posting..." : "Post Discussion"}
-        </button>
+        {/* Buttons */}
+        <div className="flex gap-2 justify-end">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 transition"
+          >
+            {loading ? "Saving..." : isEditMode ? "Update" : "Post Discussion"}
+          </button>
+        </div>
       </form>
     </div>
   );
