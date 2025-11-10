@@ -1,9 +1,11 @@
-import { FaEdit, FaTrash, FaSave, FaTimes, FaThumbsUp, FaThumbsDown } from "react-icons/fa";
+import { FaEdit, FaTrash, FaSave, FaTimes, FaThumbsUp, FaThumbsDown, FaComment } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(discussion.title);
@@ -11,13 +13,13 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
   const [category, setCategory] = useState(discussion.category?.[0] || "");
   const [tags, setTags] = useState(discussion.tags?.join(", ") || "");
   const [loading, setLoading] = useState(false);
-  const [votes, setVotes] = useState(discussion.votes || 0);
+  const [upvotes, setUpvotes] = useState(discussion.upvotes || 0);
+  const [downvotes, setDownvotes] = useState(discussion.downvotes || 0);
   const [voting, setVoting] = useState(false);
-  const [userVote, setUserVote] = useState(null); // 'upvote', 'downvote', or null
+  const [userVote, setUserVote] = useState(null);
 
   const isAuthor = isAuthenticated && user && user.id === discussion.user_id;
   
-  // Fetch user's vote status on mount
   useEffect(() => {
     if (isAuthenticated) {
       fetchVoteStatus();
@@ -40,7 +42,9 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     }
   };
   
-  const handleVote = async (voteType) => {
+  const handleVote = async (e, voteType) => {
+    e.stopPropagation();
+    
     if (!isAuthenticated) {
       return alert("You must be logged in to vote.");
     }
@@ -54,7 +58,8 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
-      setVotes(response.data.votes);
+      setUpvotes(response.data.upvotes);
+      setDownvotes(response.data.downvotes);
       setUserVote(response.data.user_vote);
     } catch (err) {
       console.error("Error voting:", err);
@@ -64,7 +69,8 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     }
   };
   
-  const handleDelete = async () => {
+  const handleDelete = async (e) => {
+    e.stopPropagation();
     if (!isAuthenticated) return alert("You must be logged in to delete.");
     if (!window.confirm("Are you sure you want to delete this discussion?")) return;
 
@@ -80,7 +86,8 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     }
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e) => {
+    e.stopPropagation();
     setIsEditing(true);
   };
 
@@ -92,7 +99,8 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     setTags(discussion.tags?.join(", ") || "");
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e.stopPropagation();
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -122,6 +130,12 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     }
   };
 
+  const handleCardClick = () => {
+    if (!isEditing) {
+      navigate(`/discussions/${discussion.id}`);
+    }
+  };
+
   const categories = [
     "General",
     "Technology",
@@ -130,7 +144,6 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     "Business",
   ];
 
-  // Edit Mode
   if (isEditing) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md border-2 border-blue-300">
@@ -195,11 +208,15 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
     );
   }
 
-  // View Mode
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition relative">
-      <h2 className="text-xl font-bold text-gray-800">{discussion.title}</h2>
-      <p className="text-gray-600 mt-2">{discussion.content}</p>
+    <div 
+      className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition relative cursor-pointer"
+      onClick={handleCardClick}
+    >
+      <h2 className="text-xl font-bold text-gray-800 hover:text-blue-600 transition">
+        {discussion.title}
+      </h2>
+      <p className="text-gray-600 mt-2 line-clamp-3">{discussion.content}</p>
       <div className="flex flex-wrap gap-2 mt-3">
         {discussion.tags?.map((tag, i) => (
           <span
@@ -212,48 +229,56 @@ export default function DiscussionCard({ discussion, onDeleted, onUpdated }) {
       </div>
       
       <div className="flex items-center justify-between mt-3">
-        <div className="text-gray-400 text-sm">
-          {discussion.views || 0} views
+        <div className="flex items-center gap-3 text-gray-400 text-sm">
+          <span>{discussion.views || 0} views</span>
+          <span className="flex items-center gap-1">
+            <FaComment size={14} />
+            {discussion.comment_count || 0}
+          </span>
         </div>
         
         {/* Voting Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => handleVote("upvote")}
+            onClick={(e) => handleVote(e, "upvote")}
             disabled={voting}
-            className={`flex items-center gap-1 transition ${
+            className={`flex items-center gap-1 px-3 py-1 rounded transition ${
               userVote === "upvote"
-                ? "text-green-600 font-bold"
-                : "text-gray-500 hover:text-green-600"
+                ? "bg-green-500 text-white font-bold"
+                : "bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-600"
             } disabled:opacity-50`}
           >
-            <FaThumbsUp size={18} /> 
+            <FaThumbsUp size={16} /> 
+            <span className="font-semibold">{upvotes}</span>
           </button>
-          <span className={`font-semibold text-lg ${
-            votes > 0 ? 'text-green-600' : votes < 0 ? 'text-red-600' : 'text-gray-600'
-          }`}>
-            {votes}
-          </span>
+          
           <button
-            onClick={() => handleVote("downvote")}
+            onClick={(e) => handleVote(e, "downvote")}
             disabled={voting}
-            className={`flex items-center gap-1 transition ${
+            className={`flex items-center gap-1 px-3 py-1 rounded transition ${
               userVote === "downvote"
-                ? "text-red-600 font-bold"
-                : "text-gray-500 hover:text-red-600"
+                ? "bg-red-500 text-white font-bold"
+                : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600"
             } disabled:opacity-50`}
           >
-            <FaThumbsDown size={18} />
+            <FaThumbsDown size={16} />
+            <span className="font-semibold">{downvotes}</span>
           </button>
         </div>
       </div>
       
       {isAuthor && (
         <div className="absolute top-2 right-2 flex gap-2">
-          <button onClick={handleEdit} className="text-blue-500 hover:text-blue-700">
+          <button 
+            onClick={handleEdit} 
+            className="text-blue-500 hover:text-blue-700 p-2"
+          >
             <FaEdit />
           </button>
-          <button onClick={handleDelete} className="text-red-500 hover:text-red-700">
+          <button 
+            onClick={handleDelete} 
+            className="text-red-500 hover:text-red-700 p-2"
+          >
             <FaTrash />
           </button>
         </div>

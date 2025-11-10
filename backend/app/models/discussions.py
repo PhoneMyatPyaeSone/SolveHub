@@ -11,7 +11,8 @@ class Discussion(Base):
     content = Column(Text, nullable=False)
     category = Column(String(255), nullable=True)  # Store as JSON string
     tags = Column(String(255), nullable=True)      # Store as JSON string
-    votes = Column(Integer, default=0)
+    upvotes = Column(Integer, default=0)           # NEW: Separate upvote count
+    downvotes = Column(Integer, default=0)         # NEW: Separate downvote count
     views = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -19,6 +20,7 @@ class Discussion(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     author = relationship("User", back_populates="discussions")
     vote_records = relationship("Vote", back_populates="discussion", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="discussion", cascade="all, delete-orphan")
 
     def set_category(self, category_list):
         """Convert list to JSON string"""

@@ -20,6 +20,13 @@ from app.schemas.blogs import (
     BlogOut
 )
 
+from app.schemas.comments import(
+    CommentAuthor,
+    CommentBase,
+    CommentCreate,
+    CommentUpdate,
+    CommentOut,
+)
 __all__ = [
     "UserBase",
     "UserCreate",
@@ -35,5 +42,10 @@ __all__ = [
     "BlogBase",
     "BlogCreate",
     "BlogUpdate",
-    "BlogOut"
+    "BlogOut",
+    "CommentAuthor",
+    "CommentBase",
+    "CommentCreate",
+    "CommentUpdate",
+    "CommentOut",
 ]

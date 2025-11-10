@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from app.models.discussions import Discussion
 from app.schemas.discussions import DiscussionCreate, DiscussionUpdate
 from typing import List, Optional
+from app.models.views import DiscussionView
+from sqlalchemy.exc import IntegrityError
 import json
 
 def create_discussion(db: Session, discussion: DiscussionCreate, user_id: int) -> Discussion:
@@ -19,14 +21,30 @@ def create_discussion(db: Session, discussion: DiscussionCreate, user_id: int) -
     db.refresh(db_discussion)
     return db_discussion
 
-def get_discussion(db: Session, discussion_id: int) -> Optional[Discussion]:
+def get_discussion(db: Session, discussion_id: int, user_id: Optional[int] = None) -> Optional[Discussion]:
     """Get a single discussion by ID"""
     discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
-    if discussion:
-        # Increment view count
+    if not discussion:
+        return None
+    
+    # Only count view once per user
+    if user_id:
+        already_viewed = db.query(DiscussionView).filter_by(
+            user_id=user_id,
+            discussion_id=discussion_id
+        ).first()
+
+        if not already_viewed:
+            db.add(DiscussionView(user_id=user_id, discussion_id=discussion_id))
+            discussion.views += 1
+            db.commit()
+            db.refresh(discussion)
+    else:
+        # Optional: if anonymous users should also increase view count
         discussion.views += 1
         db.commit()
         db.refresh(discussion)
+
     return discussion
 
 def get_all_discussions(db: Session, skip: int = 0, limit: int = 20) -> List[Discussion]:
@@ -70,8 +88,20 @@ def get_user_discussions(db: Session, user_id: int, skip: int = 0, limit: int = 
     return db.query(Discussion).filter(Discussion.user_id == user_id).order_by(Discussion.created_at.desc()).offset(skip).limit(limit).all()
 
 def search_discussions(db: Session, query: str, skip: int = 0, limit: int = 20) -> List[Discussion]:
-    """Search discussions by title or content"""
+    """Search discussions by title first, then by content if no results"""
     search = f"%{query}%"
-    return db.query(Discussion).filter(
-        (Discussion.title.like(search)) | (Discussion.content.like(search))
-    ).order_by(Discussion.created_at.desc()).offset(skip).limit(limit).all()
+
+    # Try searching in title first
+    title_matches = db.query(Discussion).filter(Discussion.title.ilike(search)) \
+        .order_by(Discussion.created_at.desc()) \
+        .offset(skip).limit(limit).all()
+
+    if title_matches:
+        return title_matches
+
+    # If none in title, search content
+    content_matches = db.query(Discussion).filter(Discussion.content.ilike(search)) \
+        .order_by(Discussion.created_at.desc()) \
+        .offset(skip).limit(limit).all()
+
+    return content_matches

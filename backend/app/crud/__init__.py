@@ -30,6 +30,14 @@ from app.crud.blogs import (
     unpublish_blog
 )
 
+from app.crud.comments import(
+    create_comment,
+    get_comment,
+    get_discussion_comments,
+    update_comment,
+    delete_comment,
+)
+
 # Export everything so it can be imported as crud.create_blog
 __all__ = [
     "get_user_by_email",
@@ -54,5 +62,10 @@ __all__ = [
     "get_user_blogs",
     "search_blogs",
     "publish_blog",
-    "unpublish_blog"
+    "unpublish_blog",
+    "create_comment",
+    "get_comment",
+    "get_discussion_comments",
+    "update_comment",
+    "delete_comment",
 ]

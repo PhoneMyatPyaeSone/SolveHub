@@ -14,7 +14,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    discussions = relationship("Discussion", back_populates="author", cascade="all, delete")
+    discussions = relationship("Discussion", back_populates="author")
     blogs = relationship("Blog", back_populates="author", cascade="all, delete")
-    votes = relationship("Vote", back_populates="user", cascade="all, delete")
-
+    votes = relationship("Vote", back_populates="user")
+    comments = relationship("Comment", back_populates="author")

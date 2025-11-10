@@ -36,8 +36,10 @@ class DiscussionOut(BaseModel):
     tags: Optional[List[str]] = None
     user_id: int
     author: Optional[AuthorOut] = None
-    votes: int
+    upvotes: int
+    downvotes: int
     views: int
+    comment_count: int = 0
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -63,9 +65,15 @@ class DiscussionOut(BaseModel):
                 return []
         return v if v else []
 
-    @field_validator('votes', mode='before')
+    @field_validator('upvotes', mode='before')
     @classmethod
-    def parse_votes(cls, v):
+    def parse_upvotes(cls, v):
+        """Convert None to 0"""
+        return v if v is not None else 0
+
+    @field_validator('downvotes', mode='before')
+    @classmethod
+    def parse_downvotes(cls, v):
         """Convert None to 0"""
         return v if v is not None else 0
 

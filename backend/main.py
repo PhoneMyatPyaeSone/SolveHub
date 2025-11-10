@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth_router, users_router, discussions_router, blogs_router
+from app.routers import auth_router, users_router, discussions_router, blogs_router, comments_router
 from app.database import engine, Base
 
 # Import models so SQLAlchemy knows about them
@@ -31,6 +31,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(discussions_router)
 app.include_router(blogs_router)
+app.include_router(comments_router)
 
 @app.get("/")
 def read_root():

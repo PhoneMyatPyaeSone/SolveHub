@@ -5,7 +5,7 @@ export default function RecentActivity() {
     const [statistics, setStatistics] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    useEffect(() => {Discu
         fetchRecentActivity();
     }, []);
 

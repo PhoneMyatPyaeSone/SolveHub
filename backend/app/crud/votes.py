@@ -22,33 +22,33 @@ def create_vote(db: Session, user_id: int, discussion_id: int, vote_type: str):
     discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
     if discussion:
         if vote_type == "upvote":
-            discussion.votes += 1
+            discussion.upvotes += 1
         elif vote_type == "downvote":
-            discussion.votes -= 1
+            discussion.downvotes += 1
     
     db.commit()
     db.refresh(vote)
     return vote
 
 def update_vote(db: Session, vote: Vote, new_vote_type: str):
-    """Update existing vote"""
+    """Update existing vote - switch from upvote to downvote or vice versa"""
     old_vote_type = vote.vote_type
     vote.vote_type = new_vote_type
     
     # Update discussion vote count
     discussion = db.query(Discussion).filter(Discussion.id == vote.discussion_id).first()
     if discussion:
-        # Remove old vote
+        # Remove old vote count
         if old_vote_type == "upvote":
-            discussion.votes -= 1
+            discussion.upvotes -= 1
         elif old_vote_type == "downvote":
-            discussion.votes += 1
+            discussion.downvotes -= 1
         
-        # Add new vote
+        # Add new vote count
         if new_vote_type == "upvote":
-            discussion.votes += 1
+            discussion.upvotes += 1
         elif new_vote_type == "downvote":
-            discussion.votes -= 1
+            discussion.downvotes += 1
     
     db.commit()
     db.refresh(vote)
@@ -60,9 +60,9 @@ def delete_vote(db: Session, vote: Vote):
     discussion = db.query(Discussion).filter(Discussion.id == vote.discussion_id).first()
     if discussion:
         if vote.vote_type == "upvote":
-            discussion.votes -= 1
+            discussion.upvotes -= 1
         elif vote.vote_type == "downvote":
-            discussion.votes += 1
+            discussion.downvotes -= 1
     
     db.delete(vote)
     db.commit()

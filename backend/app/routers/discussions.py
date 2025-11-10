@@ -6,10 +6,35 @@ from app import crud, schemas
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.discussions import Discussion
+from app.models.comments import Comment
 from app.models.votes import Vote
 from app.crud import votes as vote_crud
 
 router = APIRouter(prefix="/discussions", tags=["Discussions"])
+
+def add_comment_count_to_discussion(db: Session, discussion: Discussion) -> dict:
+    """Helper function to add comment count to discussion"""
+    comment_count = db.query(func.count(Comment.id)).filter(
+        Comment.discussion_id == discussion.id
+    ).scalar() or 0
+    
+    # Convert to dict and add comment_count
+    discussion_dict = {
+        "id": discussion.id,
+        "title": discussion.title,
+        "content": discussion.content,
+        "category": discussion.get_category(),
+        "tags": discussion.get_tags(),
+        "user_id": discussion.user_id,
+        "author": discussion.author,
+        "upvotes": discussion.upvotes or 0,
+        "downvotes": discussion.downvotes or 0,
+        "views": discussion.views or 0,
+        "comment_count": comment_count,
+        "created_at": discussion.created_at,
+        "updated_at": discussion.updated_at
+    }
+    return discussion_dict
 
 @router.post("/", response_model=schemas.DiscussionOut, status_code=status.HTTP_201_CREATED)
 def create_discussion(
@@ -18,23 +43,47 @@ def create_discussion(
     current_user = Depends(get_current_user)
 ):
     """Create a new discussion (requires authentication)"""
-    return crud.create_discussion(db, discussion, user_id=current_user.id)
+    new_discussion = crud.create_discussion(db, discussion, user_id=current_user.id)
+    return add_comment_count_to_discussion(db, new_discussion)
 
 @router.get("/", response_model=List[schemas.DiscussionOut])
 def get_discussions(
     category: Optional[str] = None,
+    filter_by: Optional[str] = None,  # latest, popular, unanswered
     db: Session = Depends(get_db), 
     skip: int = 0, 
-    limit: int = 20
+    limit: int = 1000
 ):
-    """Get all discussions with optional category filter and pagination"""
+    """Get all discussions with optional category filter, sorting, and pagination"""
     query = db.query(Discussion)
     
     if category:
         query = query.filter(Discussion.category.contains(f'"{category}"'))
     
-    discussions = query.order_by(Discussion.created_at.desc()).offset(skip).limit(limit).all()
-    return discussions
+    # Get discussions first
+    if filter_by == "popular":
+        discussions = query.order_by(desc(Discussion.upvotes)).offset(skip).limit(limit).all()
+    elif filter_by == "unanswered":
+        # Get all discussions and filter by comment count
+        all_discussions = query.order_by(desc(Discussion.created_at)).all()
+        discussions = []
+        for discussion in all_discussions:
+            comment_count = db.query(func.count(Comment.id)).filter(
+                Comment.discussion_id == discussion.id
+            ).scalar() or 0
+            if comment_count == 0:
+                discussions.append(discussion)
+        # Apply pagination to filtered results
+        discussions = discussions[skip:skip+limit]
+    else:  # latest or default
+        discussions = query.order_by(desc(Discussion.created_at)).offset(skip).limit(limit).all()
+    
+    # Add comment count to each discussion
+    result = []
+    for discussion in discussions:
+        result.append(add_comment_count_to_discussion(db, discussion))
+    
+    return result
 
 @router.get("/stats/popular-tags")
 def get_popular_tags(db: Session = Depends(get_db), limit: int = 10):
@@ -77,13 +126,34 @@ def get_top_contributors(db: Session = Depends(get_db), limit: int = 5):
     
     return contributors
 
+@router.get("/search", response_model=List[schemas.DiscussionOut])
+def search_discussions(
+    query: str,
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 1000
+):
+    """Search discussions by title first, then content"""
+    if not query.strip():
+        return []
+    
+    discussions = crud.search_discussions(db, query=query, skip=skip, limit=limit)
+    
+    # Add comment count for each discussion
+    result = []
+    for discussion in discussions:
+        result.append(add_comment_count_to_discussion(db, discussion))
+    
+    return result
+
 @router.get("/{discussion_id}", response_model=schemas.DiscussionOut)
-def get_discussion(discussion_id: int, db: Session = Depends(get_db)):
-    """Get a single discussion by ID (increments view count)"""
-    discussion = crud.get_discussion(db, discussion_id)
+def get_discussion(discussion_id: int, db: Session = Depends(get_db),current_user = Depends(get_current_user)):
+    """Get a single discussion by ID (increments view count once per user)"""
+    discussion = crud.get_discussion(db, discussion_id, user_id=current_user.id)
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
-    return discussion
+
+    return add_comment_count_to_discussion(db, discussion)
 
 @router.get("/{discussion_id}/vote-status")
 def get_vote_status(
@@ -108,36 +178,29 @@ def vote_discussion(
     if vote_type not in ["upvote", "downvote"]:
         raise HTTPException(status_code=400, detail="Invalid vote type. Use 'upvote' or 'downvote'")
     
-    # Check if discussion exists
     discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
     
-    # Check if user already voted
     existing_vote = vote_crud.get_user_vote(db, current_user.id, discussion_id)
     
     if existing_vote:
         if existing_vote.vote_type == vote_type:
-            # User clicked same vote - remove vote
             vote_crud.delete_vote(db, existing_vote)
             message = "Vote removed"
         else:
-            # User changed vote
             vote_crud.update_vote(db, existing_vote, vote_type)
             message = "Vote updated"
     else:
-        # New vote
         vote_crud.create_vote(db, current_user.id, discussion_id, vote_type)
         message = "Vote added"
     
-    # Refresh discussion to get updated vote count
     db.refresh(discussion)
-    
-    # Get current vote status
     current_vote = vote_crud.get_user_vote(db, current_user.id, discussion_id)
     
     return {
-        "votes": discussion.votes,
+        "upvotes": discussion.upvotes,
+        "downvotes": discussion.downvotes,
         "message": message,
         "user_vote": current_vote.vote_type if current_vote else None
     }
@@ -153,7 +216,8 @@ def update_discussion(
     updated = crud.update_discussion(db, discussion_id, update_data, user_id=current_user.id)
     if not updated:
         raise HTTPException(status_code=403, detail="Not authorized or discussion not found")
-    return updated
+    
+    return add_comment_count_to_discussion(db, updated)
 
 @router.delete("/{discussion_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_discussion(

@@ -13,16 +13,25 @@ export default function Discussions() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
     const [popularTags, setPopularTags] = useState([]);
     const [topContributors, setTopContributors] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchMessage, setSearchMessage] = useState("");
+    const [currentFilter, setCurrentFilter] = useState("latest");
     const { user, isAuthenticated } = useAuth();
     
     const ITEMS_PER_PAGE = 5;
     
+    // Calculate total pages based on discussions length
+    const totalPages = Math.ceil(discussions.length / ITEMS_PER_PAGE);
+    
     useEffect(() => {
-        fetchDiscussions();
-    }, [selectedCategory]);
+        if (searchQuery.trim()) {
+            handleSearch(searchQuery);
+        } else {
+            fetchDiscussions();
+        }
+    }, [selectedCategory, searchQuery]);
 
     useEffect(() => {
         fetchPopularTags();
@@ -32,17 +41,52 @@ export default function Discussions() {
     const fetchDiscussions = async () => {
         try {
             setLoading(true);
+            setSearchMessage("");
             const response = await api.get("/discussions", {
                 params: {
                     ...(selectedCategory ? { category: selectedCategory } : {}),
+                    filter_by: currentFilter,
                     skip: 0,
-                    limit: 1000  // Get many discussions at once
+                    limit: 1000
                 },
             });
             setDiscussions(response.data);
             setCurrentPage(1);
         } catch (error) {
             console.error("Error fetching discussions:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = async (query) => {
+        if (!query.trim()) {
+            fetchDiscussions();
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setSearchMessage("");
+            const response = await api.get("/discussions/search", {
+                params: {
+                    query: query.trim(),
+                    skip: 0,
+                    limit: 1000
+                },
+            });
+            
+            if (response.data.length === 0) {
+                setSearchMessage(`No discussions found matching "${query}"`);
+                setDiscussions([]);
+            } else {
+                setDiscussions(response.data);
+                setSearchMessage("");
+            }
+            setCurrentPage(1);
+        } catch (error) {
+            console.error("Error searching discussions:", error);
+            setSearchMessage("Error searching discussions. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -100,7 +144,6 @@ export default function Discussions() {
         setDiscussions([newDiscussion, ...discussions]);
         setShowForm(false);
         setCurrentPage(1);
-        // Refresh stats
         fetchPopularTags();
         fetchTopContributors();
     };
@@ -112,11 +155,14 @@ export default function Discussions() {
     };
 
     const handleDiscussionDeleted = (id) => {
-        setDiscussions(discussions.filter((d) => d.id !== id));
-        if (discussions.length === 1 && currentPage > 1) {
-            setCurrentPage(currentPage - 1);
+        const newDiscussions = discussions.filter((d) => d.id !== id);
+        setDiscussions(newDiscussions);
+        
+        const newTotalPages = Math.ceil(newDiscussions.length / ITEMS_PER_PAGE);
+        if (currentPage > newTotalPages && newTotalPages > 0) {
+            setCurrentPage(newTotalPages);
         }
-        // Refresh stats
+        
         fetchPopularTags();
         fetchTopContributors();
     };
@@ -131,8 +177,10 @@ export default function Discussions() {
     };
 
     const handleNextPage = () => {
-        setCurrentPage(prev => prev + 1);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (currentPage < totalPages) {
+            setCurrentPage(prev => prev + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     const handlePrevPage = () => {
@@ -144,7 +192,7 @@ export default function Discussions() {
 
     const getPageNumbers = () => {
         const pages = [];
-        const maxPagesToShow = 4;
+        const maxPagesToShow = 5;
         
         if (totalPages <= maxPagesToShow) {
             for (let i = 1; i <= totalPages; i++) {
@@ -155,27 +203,40 @@ export default function Discussions() {
             let end = Math.min(totalPages, currentPage + 2);
             
             if (currentPage <= 3) {
-                end = maxPagesToShow;
-            } else if (currentPage >= totalPages - 2) {
-                start = totalPages - maxPagesToShow + 1;
+                end = Math.min(maxPagesToShow, totalPages);
+                start = 1;
+            } 
+            else if (currentPage >= totalPages - 2) {
+                start = Math.max(1, totalPages - maxPagesToShow + 1);
+                end = totalPages;
+            }
+            
+            if (start > 1) {
+                pages.push(1);
+                if (start > 2) {
+                    pages.push('...');
+                }
             }
             
             for (let i = start; i <= end; i++) {
                 pages.push(i);
+            }
+            
+            if (end < totalPages) {
+                if (end < totalPages - 1) {
+                    pages.push('...');
+                }
+                pages.push(totalPages);
             }
         }
         
         return pages;
     };
 
-    // Get paginated discussions for display
     const paginatedDiscussions = discussions.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
-
-    // Calculate total pages based on all discussions
-    const calculatedTotalPages = Math.ceil(discussions.length / ITEMS_PER_PAGE);
 
     return (
         <section className="p-4">
@@ -193,6 +254,7 @@ export default function Discussions() {
                             onClick={() => {
                                 setSelectedCategory(cat.value);
                                 setCurrentPage(1);
+                                setSearchQuery(""); // Clear search when changing category
                             }}
                         >
                             {categoryIcons[cat.value] || <FaComments />} {cat.label}
@@ -239,7 +301,16 @@ export default function Discussions() {
 
                 {/* Right blocks horizontally stacked */}
                 <div className="md:w-3/4 flex flex-col gap-4">
-                    <DiscussionSearch onNewDiscussionClick={handleNewDiscussion}/>
+                    <DiscussionSearch 
+                        onSearch={setSearchQuery}
+                        onNewDiscussionClick={handleNewDiscussion}
+                        searchQuery={searchQuery}
+                        onFilterChange={(filter) => {
+                            setCurrentFilter(filter);
+                            setCurrentPage(1);
+                        }}
+                        currentFilter={currentFilter}
+                    />
                     
                     {showForm && (
                         <DiscussionForm 
@@ -250,10 +321,20 @@ export default function Discussions() {
                     
                     {loading ? (
                         <div className="text-center text-gray-500 py-8">Loading discussions...</div>
+                    ) : searchMessage ? (
+                        <div className="text-center text-gray-500 py-8 bg-yellow-50 rounded-lg border border-yellow-200">
+                            {searchMessage}
+                        </div>
                     ) : discussions.length === 0 ? (
                         <div className="text-center text-gray-500 py-8">No discussions found.</div>
                     ) : (
                         <>
+                            {searchQuery && (
+                                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
+                                    Found {discussions.length} result{discussions.length !== 1 ? 's' : ''} for "{searchQuery}"
+                                </div>
+                            )}
+                            
                             {paginatedDiscussions.map((discussion) => (
                                 <DiscussionCard 
                                     key={discussion.id} 
@@ -263,14 +344,16 @@ export default function Discussions() {
                                 />
                             ))}
                             
-                            <div className="text-center text-gray-500 text-sm">
-                                Page {currentPage} of {calculatedTotalPages}
-                            </div>
+                            {totalPages > 0 && (
+                                <div className="text-center text-gray-500 text-sm">
+                                    Page {currentPage} of {totalPages}
+                                </div>
+                            )}
                         </>
                     )}
                     
                     {/* Pagination */}
-                    {!loading && discussions.length > 0 && (
+                    {!loading && discussions.length > 0 && totalPages > 1 && (
                         <div className="flex justify-center items-center gap-2 mt-4">
                             <button
                                 onClick={handlePrevPage}
@@ -284,25 +367,31 @@ export default function Discussions() {
                                 &#60;
                             </button>
 
-                            {getPageNumbers().map((page) => (
-                                <button
-                                    key={page}
-                                    onClick={() => handlePageChange(page)}
-                                    className={`px-3 py-1 rounded transition ${
-                                        currentPage === page
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-200 text-black hover:bg-blue-500 hover:text-white'
-                                    }`}
-                                >
-                                    {page}
-                                </button>
+                            {getPageNumbers().map((page, index) => (
+                                page === '...' ? (
+                                    <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
+                                        ...
+                                    </span>
+                                ) : (
+                                    <button
+                                        key={page}
+                                        onClick={() => handlePageChange(page)}
+                                        className={`px-3 py-1 rounded transition ${
+                                            currentPage === page
+                                                ? 'bg-blue-500 text-white'
+                                                : 'bg-gray-200 text-black hover:bg-blue-500 hover:text-white'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                )
                             ))}
 
                             <button
                                 onClick={handleNextPage}
-                                disabled={currentPage >= calculatedTotalPages}
+                                disabled={currentPage >= totalPages}
                                 className={`px-3 py-1 rounded transition ${
-                                    currentPage >= calculatedTotalPages
+                                    currentPage >= totalPages
                                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                         : 'bg-gray-200 text-black hover:bg-blue-500 hover:text-white'
                                 }`}

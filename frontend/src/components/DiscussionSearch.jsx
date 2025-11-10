@@ -1,6 +1,42 @@
-import { FaSearch, FaPlus } from "react-icons/fa";
+import { FaSearch, FaPlus, FaTimes } from "react-icons/fa";
+import { useState, useEffect } from "react";
 
-export default function DiscussionSearch({ onNewDiscussionClick }) {
+export default function DiscussionSearch({ 
+  onSearch, 
+  onNewDiscussionClick, 
+  searchQuery,
+  onFilterChange,
+  currentFilter 
+}) {
+  const [localQuery, setLocalQuery] = useState(searchQuery || "");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onSearch(localQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [localQuery]);
+
+  useEffect(() => {
+    setLocalQuery(searchQuery || "");
+  }, [searchQuery]);
+
+  const handleChange = (e) => {
+    setLocalQuery(e.target.value);
+  };
+
+  const handleClear = () => {
+    setLocalQuery("");
+    onSearch("");
+  };
+
+  const filters = [
+    { label: "Latest", value: "latest" },
+    { label: "Popular", value: "popular" },
+    { label: "Unanswered", value: "unanswered" }
+  ];
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-md flex flex-col gap-4">
 
@@ -11,19 +47,35 @@ export default function DiscussionSearch({ onNewDiscussionClick }) {
           <FaSearch className="text-gray-400 mr-2" size={14} />
           <input
             type="text"
-            placeholder="Search discussions"
+            value={localQuery}
+            onChange={handleChange}
+            placeholder="Search discussions by title or content..."
             className="flex-1 p-2 text-sm placeholder-gray-500 focus:outline-none"
           />
+          {localQuery && (
+            <button
+              onClick={handleClear}
+              className="ml-2 text-gray-400 hover:text-gray-600"
+              title="Clear search"
+            >
+              <FaTimes size={14} />
+            </button>
+          )}
         </div>
 
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
-          {["Latest", "Popular", "Unanswered"].map((filter) => (
+          {filters.map((filter) => (
             <button
-              key={filter}
-              className="px-3 py-1 rounded bg-gray-200 text-black text-sm hover:bg-blue-500 hover:text-white transition w-auto"
+              key={filter.value}
+              onClick={() => onFilterChange(filter.value)}
+              className={`px-3 py-1 rounded text-sm transition w-auto ${
+                currentFilter === filter.value
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-black hover:bg-blue-500 hover:text-white'
+              }`}
             >
-              {filter}
+              {filter.label}
             </button>
           ))}
         </div>
