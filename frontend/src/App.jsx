@@ -7,6 +7,7 @@ import Member from './pages/Member'
 import Profile from './pages/Profile'
 import Blog from './pages/Blog'
 import BlogDetail from './pages/BlogDetail'
+import BlogManagement from './pages/BlogManagement'
 import Discussions from './pages/Discussion'
 import Home from './pages/Home'
 import DiscussionDetail from './components/DiscussionDetail'
@@ -23,6 +24,7 @@ function App() {
           <Route path='/profile' element={<Profile />}/>
           <Route path='/blogs' element={<Blog />}/>
           <Route path='/blog/:id' element={<BlogDetail />}/>
+          <Route path='/my-blogs' element={<BlogManagement />}/>
           <Route path='/login' element={<Login/>} />
           <Route path='/register' element={<Register/>} />
           <Route path="/discussions/:id" element={<DiscussionDetail />} />

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, User } from 'lucide-react';
+import { Calendar, Clock, User, Edit2, Trash2, Eye } from 'lucide-react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import profile from '../assets/profile.svg';
 
 export default function Blog() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -64,6 +66,21 @@ export default function Blog() {
     fetchBlogs(skip);
   };
 
+  const handleDeleteBlog = async (blogId) => {
+    if (!window.confirm('Are you sure you want to delete this blog?')) return;
+    try {
+      await api.delete(`/blogs/${blogId}`);
+      setBlogs(blogs.filter(b => b.id !== blogId));
+    } catch (err) {
+      console.error('Error deleting blog:', err);
+      alert('Failed to delete blog');
+    }
+  };
+
+  const handleEditBlog = (blogId) => {
+    navigate('/my-blogs');
+  };
+
   // Fallback to dummy data if no blogs loaded
   const displayBlogs = blogs.length > 0 ? blogs : [];
 
@@ -86,6 +103,15 @@ export default function Blog() {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Discover insights, tutorials, and industry trends from our community of developers and tech enthusiasts.
           </p>
+          {user && (
+            <button
+              onClick={() => navigate('/my-blogs')}
+              className="mt-6 inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Edit2 className="h-4 w-4" />
+              Manage My Blogs
+            </button>
+          )}
         </div>
 
         {/* Error Message */}
