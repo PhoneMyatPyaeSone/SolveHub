@@ -16,7 +16,8 @@ export default function TopContributer() {
             posts: user.posts || user.post_count || 0,
             name: user.full_name || user.name || "Unknown",
             username: user.username || "unknown_user",
-            id: user.id
+            id: user.id,
+            rank: index + 1 // 1, 2, or 3
         }));
         
         setStatistics(topContributors);
@@ -50,11 +51,15 @@ export default function TopContributer() {
                 </div>
                 
                 <span 
-                    className={`px-2 py-1 text-xs font-semibold ${
-                        item.status === "Top" ? "bg-yellow-100 text-gray-800" : "bg-gray-200 text-gray-700"
+                    className={`px-3 py-1 text-xs font-bold rounded ${
+                        item.rank === 1 
+                            ? "bg-yellow-400 text-gray-900" 
+                            : item.rank === 2 
+                            ? "bg-gray-300 text-gray-900"
+                            : "bg-amber-700 text-white"
                     }`}
                 >
-                    {item.status}
+                    {item.rank === 1 ? "🥇 Top" : item.rank === 2 ? "🥈 Rising" : "🥉 Active"}
                 </span>
               </div>
             ))

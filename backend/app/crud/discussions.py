@@ -22,28 +22,56 @@ def create_discussion(db: Session, discussion: DiscussionCreate, user_id: int) -
     return db_discussion
 
 def get_discussion(db: Session, discussion_id: int, user_id: Optional[int] = None) -> Optional[Discussion]:
-    """Get a single discussion by ID"""
+    """Get a single discussion by ID and track unique views"""
     discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
     if not discussion:
         return None
     
-    # Only count view once per user
+    print(f"DEBUG CRUD: Discussion {discussion_id} current views: {discussion.views}")
+    print(f"DEBUG CRUD: User ID: {user_id}")
+    
+    # Track view only if user is provided
     if user_id:
+        # Check if this user has already viewed this discussion
         already_viewed = db.query(DiscussionView).filter_by(
             user_id=user_id,
             discussion_id=discussion_id
         ).first()
 
+        print(f"DEBUG CRUD: Already viewed: {already_viewed is not None}")
+
         if not already_viewed:
-            db.add(DiscussionView(user_id=user_id, discussion_id=discussion_id))
-            discussion.views += 1
-            db.commit()
-            db.refresh(discussion)
+            # Add new view record
+            try:
+                new_view = DiscussionView(user_id=user_id, discussion_id=discussion_id)
+                db.add(new_view)
+                db.flush()  # Flush to database before counting
+                
+                print(f"DEBUG CRUD: New view record created")
+                
+                # Update the view count to match actual unique views
+                unique_views = db.query(DiscussionView).filter(
+                    DiscussionView.discussion_id == discussion_id
+                ).count()
+                
+                print(f"DEBUG CRUD: Unique views count: {unique_views}")
+                
+                discussion.views = unique_views
+                db.commit()
+                db.refresh(discussion)
+                
+                print(f"DEBUG CRUD: Updated discussion views to: {discussion.views}")
+            except IntegrityError as e:
+                # Handle race condition if view was added simultaneously
+                print(f"DEBUG CRUD: IntegrityError: {e}")
+                db.rollback()
+                db.refresh(discussion)
+            except Exception as e:
+                print(f"DEBUG CRUD: Error: {e}")
+                db.rollback()
+                db.refresh(discussion)
     else:
-        # Optional: if anonymous users should also increase view count
-        discussion.views += 1
-        db.commit()
-        db.refresh(discussion)
+        print(f"DEBUG CRUD: No user_id provided, skipping view tracking")
 
     return discussion
 
@@ -78,10 +106,24 @@ def delete_discussion(db: Session, discussion_id: int, user_id: int) -> bool:
     
     if not discussion or discussion.user_id != user_id:
         return False
-    
-    db.delete(discussion)
-    db.commit()
-    return True
+    try:
+        # Delete dependent records that have foreign key constraints
+        # Remove discussion views, votes and comments before deleting the discussion
+        from app.models.views import DiscussionView
+        from app.models.votes import Vote
+        from app.models.comments import Comment
+
+        db.query(DiscussionView).filter(DiscussionView.discussion_id == discussion_id).delete(synchronize_session=False)
+        db.query(Vote).filter(Vote.discussion_id == discussion_id).delete(synchronize_session=False)
+        db.query(Comment).filter(Comment.discussion_id == discussion_id).delete(synchronize_session=False)
+
+        db.delete(discussion)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting discussion {discussion_id}: {e}")
+        return False
 
 def get_user_discussions(db: Session, user_id: int, skip: int = 0, limit: int = 20) -> List[Discussion]:
     """Get all discussions by a specific user"""

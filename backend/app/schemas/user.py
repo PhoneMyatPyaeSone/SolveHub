@@ -15,6 +15,12 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
 
+
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+    confirm_password: str
+
 class UserResponse(UserBase):
     id: int
     is_active: bool

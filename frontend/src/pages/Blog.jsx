@@ -1,48 +1,79 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, User } from 'lucide-react';
+import api from '../api/axios';
 import profile from '../assets/profile.svg';
 
 export default function Blog() {
-  const blogPosts = [
-    {
-      id: 1,
-      title: "Building Scalable Web Applications with Modern Technologies",
-      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      excerpt: "Discover the latest trends and best practices in web development. Learn how to build applications that can handle millions of users while maintaining performance and reliability.",
-      author: {
-        name: "Sarah Johnson",
-        avatar: profile,
-        role: "Senior Full-Stack Developer"
-      },
-      publishDate: "October 1, 2025",
-      readTime: "8 min read"
-    },
-    {
-      id: 2,
-      title: "The Future of Artificial Intelligence in Software Development",
-      image: "https://images.unsplash.com/photo-1555255707-c07966088b7b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      excerpt: "Explore how AI is revolutionizing the way we write code, debug applications, and optimize performance. From automated testing to intelligent code completion, the future is here.",
-      author: {
-        name: "Michael Chen",
-        avatar: profile,
-        role: "AI Engineer"
-      },
-      publishDate: "September 28, 2025",
-      readTime: "12 min read"
-    },
-    {
-      id: 3,
-      title: "Mastering React Hooks: Advanced Patterns and Best Practices",
-      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      excerpt: "Deep dive into React Hooks with practical examples and advanced patterns. Learn how to create custom hooks, optimize performance, and write cleaner, more maintainable code.",
-      author: {
-        name: "Emily Rodriguez",
-        avatar: profile,
-        role: "React Specialist"
-      },
-      publishDate: "September 25, 2025",
-      readTime: "10 min read"
+  const navigate = useNavigate();
+  const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);
+
+  const LIMIT = 6; // Number of blogs per page
+
+  useEffect(() => {
+    fetchBlogs();
+  }, []);
+
+  const fetchBlogs = async (newSkip = 0) => {
+    try {
+      if (newSkip === 0) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await api.get('/blogs', {
+        params: {
+          skip: newSkip,
+          limit: LIMIT,
+          published_only: true
+        }
+      });
+
+      const fetchedBlogs = response.data || [];
+      
+      if (newSkip === 0) {
+        setBlogs(fetchedBlogs);
+      } else {
+        setBlogs(prev => [...prev, ...fetchedBlogs]);
+      }
+
+      // Check if there are more blogs to load
+      setHasMore(fetchedBlogs.length === LIMIT);
+      setSkip(newSkip + LIMIT);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching blogs:", err);
+      setError("Failed to load blogs");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-  ];
+  };
+
+  const handleReadMore = (blogId) => {
+    navigate(`/blog/${blogId}`);
+  };
+
+  const handleLoadMore = () => {
+    fetchBlogs(skip);
+  };
+
+  // Fallback to dummy data if no blogs loaded
+  const displayBlogs = blogs.length > 0 ? blogs : [];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="text-gray-500 text-lg">Loading blogs...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -57,83 +88,112 @@ export default function Blog() {
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mb-8 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
         {/* Blog Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {blogPosts.map((post) => (
-            <article
-              key={post.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-            >
-              {/* Blog Image */}
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={post.image}
-                  alt={post.title}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
+        {displayBlogs.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {displayBlogs.map((blog) => (
+                <article
+                  key={blog.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col"
+                >
+                  {/* Blog Content */}
+                  <div className="p-6 flex-1 flex flex-col">
+                    {/* Category */}
+                    {blog.category && blog.category.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {blog.category.map((cat, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium"
+                          >
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
-              {/* Blog Content */}
-              <div className="p-6">
-                {/* Title */}
-                <h2 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 hover:text-blue-600 transition-colors">
-                  {post.title}
-                </h2>
+                    {/* Title */}
+                    <h2 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 hover:text-blue-600 transition-colors">
+                      {blog.title}
+                    </h2>
 
-                {/* Meta Info */}
-                <div className="flex items-center text-sm text-gray-500 mb-3 space-x-4">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    {post.publishDate}
+                    {/* Meta Info */}
+                    <div className="flex items-center text-sm text-gray-500 mb-3 space-x-4">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        {new Date(blog.created_at).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {blog.content ? `${Math.ceil(blog.content.split(' ').length / 200)} min` : "N/A"}
+                      </div>
+                    </div>
+
+                    {/* Excerpt */}
+                    <p className="text-gray-600 mb-4 line-clamp-3 flex-1">
+                      {blog.content.substring(0, 150)}...
+                    </p>
+
+                    {/* Read More Button */}
+                    <button 
+                      onClick={() => handleReadMore(blog.id)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 mb-4 self-start"
+                    >
+                      Read More
+                      <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
+                    {/* Author Profile */}
+                    <div className="flex items-center pt-4 border-t border-gray-200 mt-auto">
+                      <div className="flex-shrink-0">
+                        <img
+                          src={profile}
+                          alt={blog.author?.full_name || "Author"}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-900">
+                          {blog.author?.full_name || "Unknown"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Author
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {post.readTime}
-                  </div>
-                </div>
+                </article>
+              ))}
+            </div>
 
-                {/* Excerpt */}
-                <p className="text-gray-600 mb-4 line-clamp-3">
-                  {post.excerpt}
-                </p>
-
-                {/* Read More Button */}
-                <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 mb-4">
-                  Read More
-                  <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+            {/* Load More Section */}
+            {hasMore && (
+              <div className="text-center mt-12">
+                <button 
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? "Loading..." : "Load More Posts"}
                 </button>
-
-                {/* Author Profile */}
-                <div className="flex items-center pt-4 border-t border-gray-200">
-                  <div className="flex-shrink-0">
-                    <img
-                      src={post.author.avatar}
-                      alt={post.author.name}
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900">
-                      {post.author.name}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {post.author.role}
-                    </p>
-                  </div>
-                </div>
               </div>
-            </article>
-          ))}
-        </div>
-
-        {/* Load More Section */}
-        <div className="text-center mt-12">
-          <button className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200">
-            Load More Posts
-          </button>
-        </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No blogs available yet</p>
+          </div>
+        )}
       </div>
     </div>
   );

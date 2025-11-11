@@ -2,11 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth_router, users_router, discussions_router, blogs_router, comments_router
 from app.database import engine, Base
-
-# Import models so SQLAlchemy knows about them
-from app.models.user import User
-from app.models.discussions import Discussion
-from app.models.blogs import Blog
+from app.models import * 
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -17,10 +13,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware - MUST be configured BEFORE routes
+origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,3 +39,11 @@ app.include_router(comments_router)
 @app.get("/")
 def read_root():
     return {"message": "Welcome to SolveHub API"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

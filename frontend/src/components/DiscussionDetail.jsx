@@ -20,6 +20,7 @@ export default function DiscussionDetail() {
   const [editCategory, setEditCategory] = useState("");
   const [editTags, setEditTags] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     fetchDiscussion();
@@ -31,7 +32,17 @@ export default function DiscussionDetail() {
   const fetchDiscussion = async () => {
     try {
       setLoading(true);
+      
+      console.log('Fetching discussion with ID:', id);
+      const token = localStorage.getItem("token");
+      console.log('Token present:', !!token);
+      
+      // Use axios interceptor to automatically include token
       const response = await api.get(`/discussions/${id}`);
+      
+      console.log('Discussion fetched:', response.data);
+      console.log('View count:', response.data.views);
+      
       setDiscussion(response.data);
       setEditTitle(response.data.title);
       setEditContent(response.data.content);
@@ -48,9 +59,7 @@ export default function DiscussionDetail() {
 
   const fetchVoteStatus = async () => {
     try {
-      const response = await api.get(`/discussions/${id}/vote-status`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      const response = await api.get(`/discussions/${id}/vote-status`);
       if (response.data.voted) {
         setUserVote(response.data.vote_type);
       }
@@ -68,10 +77,7 @@ export default function DiscussionDetail() {
       setVoting(true);
       const response = await api.post(
         `/discussions/${id}/vote/${voteType}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
+        {}
       );
       setDiscussion((prev) => ({ 
         ...prev, 
@@ -109,9 +115,6 @@ export default function DiscussionDetail() {
           content: editContent,
           category: editCategory ? [editCategory] : [],
           tags: editTags.split(",").map((t) => t.trim()).filter(Boolean),
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
       setDiscussion(response.data);
@@ -127,16 +130,38 @@ export default function DiscussionDetail() {
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this discussion?")) return;
+    // quick check for token
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("You must be logged in to delete a discussion.");
+      return;
+    }
 
     try {
-      await api.delete(`/discussions/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      setDeleteLoading(true);
+      const response = await api.delete(`/discussions/${id}`);
+      console.log("Delete response:", response);
       alert("Discussion deleted successfully.");
       navigate("/discussions");
     } catch (err) {
-      console.error(err);
-      alert("Failed to delete discussion.");
+      // Try to surface useful information to the user and dev console
+      const serverData = err.response?.data;
+      console.error("Delete error details:", serverData || err);
+
+      // Prefer structured messages if present
+      const serverMessage = serverData?.detail || serverData?.message || (serverData && JSON.stringify(serverData));
+
+      if (err.response?.status === 401) {
+        alert(serverMessage || "Unauthorized. Please log in and try again.");
+      } else if (err.response?.status === 403) {
+        alert(serverMessage || "You don't have permission to delete this discussion. Only the author can delete it.");
+      } else if (serverMessage) {
+        alert(`Failed to delete discussion: ${serverMessage}`);
+      } else {
+        alert("Failed to delete discussion. See console for details.");
+      }
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -280,7 +305,8 @@ export default function DiscussionDetail() {
               </button>
               <button
                 onClick={handleDelete}
-                className="p-2 text-red-500 hover:text-red-700 transition"
+                disabled={deleteLoading}
+                className={`p-2 text-red-500 hover:text-red-700 transition ${deleteLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 title="Delete"
               >
                 <FaTrash size={20} />

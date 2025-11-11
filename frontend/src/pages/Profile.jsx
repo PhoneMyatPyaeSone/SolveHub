@@ -6,7 +6,7 @@ import api from "../api/axios";
 import Footer from "../components/Footer";
 
 export default function Profile() {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, setUser } = useAuth();
   const navigate = useNavigate();
   const [userStats, setUserStats] = useState({
     posts: 0,
@@ -59,6 +59,24 @@ export default function Profile() {
     alert("✅ Logged out successfully!");
   };
 
+  // Edit profile state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    username: "",
+    full_name: "",
+    email: "",
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  // Change password state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    old_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -70,6 +88,62 @@ export default function Profile() {
   if (!user) {
     return null;
   }
+
+  // initialize profile form when user loads
+  useEffect(() => {
+    if (user) {
+      setProfileForm({ username: user.username || "", full_name: user.full_name || "", email: user.email || "" });
+    }
+  }, [user]);
+
+  const openEditProfile = () => setIsEditingProfile(true);
+  const closeEditProfile = () => setIsEditingProfile(false);
+
+  const handleProfileChange = (e) => {
+    setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
+  };
+
+  const saveProfile = async () => {
+    try {
+      setProfileSaving(true);
+      const response = await api.put('/users/me', profileForm);
+      // update context user
+      setUser(response.data);
+      alert('Profile updated successfully');
+      closeEditProfile();
+    } catch (err) {
+      console.error('Error updating profile:', err.response?.data || err);
+      alert(err.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  // Change password handlers
+  const openChangePassword = () => setIsChangingPassword(true);
+  const closeChangePassword = () => setIsChangingPassword(false);
+
+  const handlePasswordChange = (e) => {
+    setPasswordForm({ ...passwordForm, [e.target.name]: e.target.value });
+  };
+
+  const savePassword = async () => {
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      return alert('New password and confirmation do not match');
+    }
+    try {
+      setPasswordSaving(true);
+      const response = await api.post('/users/me/change-password', passwordForm);
+      alert(response.data?.message || 'Password changed successfully');
+      closeChangePassword();
+      setPasswordForm({ old_password: '', new_password: '', confirm_password: '' });
+    } catch (err) {
+      console.error('Error changing password:', err.response?.data || err);
+      alert(err.response?.data?.detail || 'Failed to change password');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const getInitials = (fullName) => {
     return fullName
@@ -121,7 +195,7 @@ export default function Profile() {
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-2 w-full md:w-auto">
-                <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <button onClick={openEditProfile} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                   <Edit2 className="w-4 h-4" />
                   Edit Profile
                 </button>
@@ -230,6 +304,55 @@ export default function Profile() {
               </div>
             </div>
           </div>
+          {/* Edit Profile Form */}
+          {isEditingProfile && (
+            <div className="bg-white rounded-lg shadow-lg p-6 md:p-8 mt-6">
+              <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600">Full name</label>
+                  <input name="full_name" value={profileForm.full_name} onChange={handleProfileChange} className="w-full border p-2 rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600">Username</label>
+                  <input name="username" value={profileForm.username} onChange={handleProfileChange} className="w-full border p-2 rounded" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-600">Email</label>
+                  <input name="email" value={profileForm.email} onChange={handleProfileChange} className="w-full border p-2 rounded" />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end mt-4">
+                <button onClick={closeEditProfile} className="px-4 py-2 border rounded">Cancel</button>
+                <button onClick={saveProfile} disabled={profileSaving} className="px-4 py-2 bg-blue-600 text-white rounded">{profileSaving ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </div>
+          )}
+
+          {/* Change Password Form */}
+          {isChangingPassword && (
+            <div className="bg-white rounded-lg shadow-lg p-6 md:p-8 mt-6">
+              <h2 className="text-xl font-bold mb-4">Change Password</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-600">Current password</label>
+                  <input name="old_password" type="password" value={passwordForm.old_password} onChange={handlePasswordChange} className="w-full border p-2 rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600">New password</label>
+                  <input name="new_password" type="password" value={passwordForm.new_password} onChange={handlePasswordChange} className="w-full border p-2 rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600">Confirm new password</label>
+                  <input name="confirm_password" type="password" value={passwordForm.confirm_password} onChange={handlePasswordChange} className="w-full border p-2 rounded" />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end mt-4">
+                <button onClick={closeChangePassword} className="px-4 py-2 border rounded">Cancel</button>
+                <button onClick={savePassword} disabled={passwordSaving} className="px-4 py-2 bg-blue-600 text-white rounded">{passwordSaving ? 'Saving...' : 'Change Password'}</button>
+              </div>
+            </div>
+          )}
 
           {/* Info Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -239,7 +362,7 @@ export default function Profile() {
               <p className="text-gray-600 text-sm mb-4">
                 Your account is secure. You can change your password at any time.
               </p>
-              <button className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+              <button onClick={openChangePassword} className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
                 Change Password
               </button>
             </div>

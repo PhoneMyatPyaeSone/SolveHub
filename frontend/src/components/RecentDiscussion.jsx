@@ -21,19 +21,26 @@ export default function RecentDiscussion() {
                 }
             });
             
-            // Get latest 5 discussions
+            // Get latest 5 discussions and compute relative times
             const recentDiscussions = response.data
                 .slice(0, 5)
-                .map(discussion => ({
-                    question: discussion.title,
-                    startBy: discussion.author?.full_name || "Unknown User",
-                    field: `in ${discussion.category || "General"}`,
-                    post: {
-                        replies: 0,
+                .map(discussion => {
+                    // category may be an array or string
+                    const cat = Array.isArray(discussion.category) ? (discussion.category[0] || "General") : (discussion.category || "General");
+
+                    // compute time ago from created_at (or updated_at)
+                    const timestamp = discussion.updated_at || discussion.created_at;
+                    const lastPost = computeTimeAgo(timestamp);
+
+                    return {
+                        id: discussion.id,
+                        question: discussion.title,
+                        startBy: discussion.author?.full_name || "Unknown User",
+                        field: `in ${cat}`,
                         views: discussion.views || 0,
-                        lastPost: 3
+                        lastPost
                     }
-                }));
+                });
             
             setDiscussions(recentDiscussions);
         } catch (error) {
@@ -43,6 +50,18 @@ export default function RecentDiscussion() {
             setLoading(false);
         }
     };
+    
+    function computeTimeAgo(isoString){
+        if(!isoString) return 'Unknown time';
+        const then = new Date(isoString);
+        const now = new Date();
+        const diff = Math.floor((now - then) / 1000); // seconds
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return `${Math.floor(diff/60)} minutes ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)} hours ago`;
+        if (diff < 604800) return `${Math.floor(diff/86400)} days ago`;
+        return then.toLocaleDateString();
+    }
         
     return(
         <section className="bg-white shadow-lg p-3 rounded-lg w-full">
@@ -73,9 +92,8 @@ export default function RecentDiscussion() {
 
                             {/* Post properties */}
                             <div className="flex space-x-4 text-sm text-gray-500 mt-1">
-                                <span>{item.post.replies} replies</span>
-                                <span>{item.post.views} views</span>
-                                <span>Last Post: {item.post.lastPost} hours ago</span>
+                                <span>{item.views} views</span>
+                                <span>Last Post: {item.lastPost}</span>
                             </div>
 
                             <hr className="border-gray-200 mt-3" />

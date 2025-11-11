@@ -9,6 +9,7 @@ export default function Member() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("posts");
+  const [minPosts, setMinPosts] = useState(0);
 
   useEffect(() => {
     fetchMembers();
@@ -31,29 +32,43 @@ export default function Member() {
   const handleSearch = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
-    
-    const filtered = members.filter((member) =>
-      member.username.toLowerCase().includes(term) ||
-      member.full_name.toLowerCase().includes(term)
-    );
-    
-    setFilteredMembers(filtered);
+    applyFilters(term, minPosts, sortBy);
+  };
+
+  // Handle posts filter
+  const handlePostsFilter = (e) => {
+    const posts = parseInt(e.target.value) || 0;
+    setMinPosts(posts);
+    applyFilters(searchTerm, posts, sortBy);
+  };
+
+  // Apply all filters and sort
+  const applyFilters = (search, posts, sort) => {
+    let filtered = members.filter((member) => {
+      const matchesSearch = 
+        member.username.toLowerCase().includes(search) ||
+        member.full_name.toLowerCase().includes(search);
+      const matchesPosts = member.posts >= posts;
+      return matchesSearch && matchesPosts;
+    });
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      if (sort === "posts") return b.posts - a.posts;
+      if (sort === "votes") return b.votes - a.votes;
+      if (sort === "views") return b.views - a.views;
+      if (sort === "name") return a.full_name.localeCompare(b.full_name);
+      return 0;
+    });
+
+    setFilteredMembers(sorted);
   };
 
   // Handle sorting
   const handleSort = (e) => {
     const sortType = e.target.value;
     setSortBy(sortType);
-    
-    const sorted = [...filteredMembers].sort((a, b) => {
-      if (sortType === "posts") return b.posts - a.posts;
-      if (sortType === "votes") return b.votes - a.votes;
-      if (sortType === "views") return b.views - a.views;
-      if (sortType === "name") return a.full_name.localeCompare(b.full_name);
-      return 0;
-    });
-    
-    setFilteredMembers(sorted);
+    applyFilters(searchTerm, minPosts, sortType);
   };
 
   if (loading) {
@@ -134,7 +149,7 @@ export default function Member() {
 
           {/* Search and Filter Section */}
           <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Search */}
               <div className="relative">
                 <FaSearch className="absolute left-3 top-3 text-gray-400" />
@@ -146,6 +161,20 @@ export default function Member() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Filter by Posts */}
+              <select
+                value={minPosts}
+                onChange={handlePostsFilter}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+              >
+                <option value={0}>All Posts</option>
+                <option value={1}>1+ Posts</option>
+                <option value={5}>5+ Posts</option>
+                <option value={10}>10+ Posts</option>
+                <option value={20}>20+ Posts</option>
+                <option value={50}>50+ Posts</option>
+              </select>
 
               {/* Sort */}
               <select

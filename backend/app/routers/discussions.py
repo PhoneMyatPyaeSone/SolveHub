@@ -1,16 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text
 from typing import List, Optional
+from jose import jwt, JWTError
 from app import crud, schemas
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.discussions import Discussion
 from app.models.comments import Comment
 from app.models.votes import Vote
+from app.models.views import DiscussionView
+from app.models.user import User
 from app.crud import votes as vote_crud
+from app.config import settings
+from app.utils.auth import verify_token
 
 router = APIRouter(prefix="/discussions", tags=["Discussions"])
+security = HTTPBearer(auto_error=False)
 
 def add_comment_count_to_discussion(db: Session, discussion: Discussion) -> dict:
     """Helper function to add comment count to discussion"""
@@ -49,7 +56,7 @@ def create_discussion(
 @router.get("/", response_model=List[schemas.DiscussionOut])
 def get_discussions(
     category: Optional[str] = None,
-    filter_by: Optional[str] = None,  # latest, popular, unanswered
+    filter_by: Optional[str] = None,
     db: Session = Depends(get_db), 
     skip: int = 0, 
     limit: int = 1000
@@ -60,25 +67,17 @@ def get_discussions(
     if category:
         query = query.filter(Discussion.category.contains(f'"{category}"'))
     
-    # Get discussions first
     if filter_by == "popular":
-        discussions = query.order_by(desc(Discussion.upvotes)).offset(skip).limit(limit).all()
+        query = query.order_by(desc(Discussion.upvotes))
     elif filter_by == "unanswered":
-        # Get all discussions and filter by comment count
-        all_discussions = query.order_by(desc(Discussion.created_at)).all()
-        discussions = []
-        for discussion in all_discussions:
-            comment_count = db.query(func.count(Comment.id)).filter(
-                Comment.discussion_id == discussion.id
-            ).scalar() or 0
-            if comment_count == 0:
-                discussions.append(discussion)
-        # Apply pagination to filtered results
-        discussions = discussions[skip:skip+limit]
-    else:  # latest or default
-        discussions = query.order_by(desc(Discussion.created_at)).offset(skip).limit(limit).all()
+        subquery = db.query(Comment.discussion_id).group_by(Comment.discussion_id).subquery()
+        query = query.filter(~Discussion.id.in_(subquery))
+        query = query.order_by(desc(Discussion.created_at))
+    else:
+        query = query.order_by(desc(Discussion.created_at))
     
-    # Add comment count to each discussion
+    discussions = query.offset(skip).limit(limit).all()
+    
     result = []
     for discussion in discussions:
         result.append(add_comment_count_to_discussion(db, discussion))
@@ -139,7 +138,6 @@ def search_discussions(
     
     discussions = crud.search_discussions(db, query=query, skip=skip, limit=limit)
     
-    # Add comment count for each discussion
     result = []
     for discussion in discussions:
         result.append(add_comment_count_to_discussion(db, discussion))
@@ -147,12 +145,82 @@ def search_discussions(
     return result
 
 @router.get("/{discussion_id}", response_model=schemas.DiscussionOut)
-def get_discussion(discussion_id: int, db: Session = Depends(get_db),current_user = Depends(get_current_user)):
-    """Get a single discussion by ID (increments view count once per user)"""
-    discussion = crud.get_discussion(db, discussion_id, user_id=current_user.id)
+def get_discussion(
+    discussion_id: int, 
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get a single discussion by ID (increments view count for unique users)"""
+    print(f"\n=== DISCUSSION VIEW REQUEST ===")
+    print(f"Discussion ID: {discussion_id}")
+    
+    user_id = None
+    
+    # Try to get user_id from token if provided
+    if credentials:
+        try:
+            print(f"Token received: {credentials.credentials[:20]}...")
+            # Decode JWT manually to get user email
+            payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            email: str = payload.get("sub")
+            print(f"Email from token: {email}")
+            
+            # Get user by email to get user_id
+            user_obj = db.query(User).filter(User.email == email).first()
+            if user_obj:
+                user_id = user_obj.id
+                print(f"User ID from token: {user_id}")
+            else:
+                print(f"User not found for email: {email}")
+        except Exception as e:
+            print(f"Token verification failed: {e}")
+    else:
+        print("No credentials provided - anonymous user")
+    
+    # Get discussion from database
+    discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
     if not discussion:
         raise HTTPException(status_code=404, detail="Discussion not found")
-
+    
+    print(f"Discussion found: {discussion.title}")
+    print(f"Current views: {discussion.views}")
+    
+    # Track view if user is authenticated
+    if user_id:
+        # Check if already viewed
+        already_viewed = db.query(DiscussionView).filter_by(
+            user_id=user_id,
+            discussion_id=discussion_id
+        ).first()
+        
+        print(f"Already viewed by this user: {already_viewed is not None}")
+        
+        if not already_viewed:
+            try:
+                # Create new view record
+                new_view = DiscussionView(user_id=user_id, discussion_id=discussion_id)
+                db.add(new_view)
+                db.flush()
+                
+                print("New view record created")
+                
+                # Increment view count by 1 (not replace with unique count)
+                discussion.views = (discussion.views or 0) + 1
+                db.commit()
+                db.refresh(discussion)
+                
+                print(f"Discussion views incremented to: {discussion.views}")
+            except Exception as e:
+                print(f"Error tracking view: {e}")
+                db.rollback()
+        else:
+            print("Skipping view increment - user already viewed this")
+    else:
+        print("No user_id - skipping view tracking")
+    
+    print(f"Final view count: {discussion.views}")
+    print("=== END REQUEST ===\n")
+    
     return add_comment_count_to_discussion(db, discussion)
 
 @router.get("/{discussion_id}/vote-status")
@@ -226,7 +294,16 @@ def delete_discussion(
     current_user = Depends(get_current_user)
 ):
     """Delete a discussion (only by the author)"""
-    success = crud.delete_discussion(db, discussion_id, user_id=current_user.id)
+    print(f"Attempting delete: discussion_id={discussion_id}, user_id={getattr(current_user, 'id', None)}")
+    try:
+        success = crud.delete_discussion(db, discussion_id, user_id=current_user.id)
+    except Exception as e:
+        # Log full exception info to server logs and return a 500 with detail
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Error while deleting discussion {discussion_id}: {e}\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Server error while deleting discussion: {str(e)}")
+
     if not success:
         raise HTTPException(status_code=403, detail="Not authorized or discussion not found")
     return None

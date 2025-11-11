@@ -3,6 +3,15 @@ from typing import List, Optional
 from datetime import datetime
 import json
 
+class UserBasic(BaseModel):
+    """Basic user info for blog author"""
+    id: int
+    full_name: str
+    email: str
+
+    class Config:
+        from_attributes = True
+
 class BlogBase(BaseModel):
     title: str
     content: str
@@ -27,6 +36,7 @@ class BlogOut(BaseModel):
     category: Optional[List[str]] = None
     tags: Optional[List[str]] = None
     user_id: int
+    author: Optional[UserBasic] = None
     is_published: bool
     created_at: datetime
     updated_at: Optional[datetime] = None

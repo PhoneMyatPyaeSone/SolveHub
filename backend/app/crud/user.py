@@ -61,6 +61,23 @@ def update_user(db: Session, user_id: int, user_update: UserUpdate) -> Optional[
     db.refresh(db_user)
     return db_user
 
+
+def change_user_password(db: Session, user_id: int, old_password: str, new_password: str) -> bool:
+    """Change the user's password if old_password matches."""
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        return False
+
+    # verify old password
+    if not verify_password(old_password, db_user.hashed_password):
+        return False
+
+    # set new hashed password
+    db_user.hashed_password = get_password_hash(new_password)
+    db.commit()
+    db.refresh(db_user)
+    return True
+
 def deactivate_user(db: Session, user_id: int) -> Optional[User]:
     """Deactivate a user"""
     db_user = get_user_by_id(db, user_id)

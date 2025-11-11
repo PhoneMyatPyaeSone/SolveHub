@@ -5,7 +5,7 @@ export default function RecentActivity() {
     const [statistics, setStatistics] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {Discu
+    useEffect(() => {
         fetchRecentActivity();
     }, []);
 
@@ -22,7 +22,7 @@ export default function RecentActivity() {
             const recentActivities = discussionsResponse.data.slice(0, 3).map((discussion, index) => ({
                 name: discussion.author?.full_name || "Unknown User",
                 activity: `posted "${discussion.title.substring(0, 30)}..."`,
-                status: '10 minutes ago'
+                status: computeTimeAgo(discussion.updated_at || discussion.created_at)
             }));
 
             setStatistics(recentActivities);
@@ -33,6 +33,18 @@ export default function RecentActivity() {
             setLoading(false);
         }
     };
+    
+    function computeTimeAgo(isoString){
+        if(!isoString) return 'Unknown time';
+        const then = new Date(isoString);
+        const now = new Date();
+        const diff = Math.floor((now - then) / 1000); // seconds
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return `${Math.floor(diff/60)} minutes ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)} hours ago`;
+        if (diff < 604800) return `${Math.floor(diff/86400)} days ago`;
+        return then.toLocaleDateString();
+    }
     
     return(
         <section className="bg-white shadow-lg rounded-lg w-full">

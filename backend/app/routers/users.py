@@ -4,6 +4,8 @@ from sqlalchemy import func
 from app.database import get_db
 from app.schemas.user import UserResponse, UserUpdate
 from app.crud.user import get_user_by_id, update_user, deactivate_user
+from app.crud.user import change_user_password
+from app.schemas.user import ChangePassword
 from app.dependencies import get_current_active_user
 from app.models.user import User
 from app.models.discussions import Discussion
@@ -21,7 +23,7 @@ def get_all_members_statistics(db: Session = Depends(get_db)):
             Discussion.user_id == member.id
         ).scalar()
         
-        total_votes = db.query(func.sum(Discussion.votes)).filter(
+        total_votes = db.query(func.sum(Discussion.upvotes)).filter(
             Discussion.user_id == member.id
         ).scalar() or 0
         
@@ -80,3 +82,20 @@ def deactivate_user_account(
             detail="User not found"
         )
     return deactivated_user
+
+
+@router.post("/me/change-password")
+def change_password(
+    payload: ChangePassword,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Change current user's password"""
+    # basic validation
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password and confirmation do not match")
+
+    success = change_user_password(db=db, user_id=current_user.id, old_password=payload.old_password, new_password=payload.new_password)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect or user not found")
+    return {"message": "Password changed successfully"}

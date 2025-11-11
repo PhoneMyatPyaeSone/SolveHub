@@ -25,13 +25,27 @@ export default function Discussions() {
     // Calculate total pages based on discussions length
     const totalPages = Math.ceil(discussions.length / ITEMS_PER_PAGE);
     
+    // Fetch discussions whenever category, search, or filter changes
     useEffect(() => {
         if (searchQuery.trim()) {
             handleSearch(searchQuery);
         } else {
             fetchDiscussions();
         }
-    }, [selectedCategory, searchQuery]);
+    }, [selectedCategory, currentFilter]); // Removed searchQuery from here
+
+    // Separate effect for search query with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery.trim()) {
+                handleSearch(searchQuery);
+            } else {
+                fetchDiscussions();
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     useEffect(() => {
         fetchPopularTags();
@@ -42,18 +56,33 @@ export default function Discussions() {
         try {
             setLoading(true);
             setSearchMessage("");
-            const response = await api.get("/discussions", {
-                params: {
-                    ...(selectedCategory ? { category: selectedCategory } : {}),
-                    filter_by: currentFilter,
-                    skip: 0,
-                    limit: 1000
-                },
-            });
+            
+            const params = {
+                skip: 0,
+                limit: 1000
+            };
+
+            // Add category filter if selected
+            if (selectedCategory) {
+                params.category = selectedCategory;
+            }
+
+            // Add filter_by parameter
+            if (currentFilter) {
+                params.filter_by = currentFilter;
+            }
+
+            console.log('Fetching discussions with params:', params); // Debug log
+
+            const response = await api.get("/discussions", { params });
+            
+            console.log('Received discussions:', response.data.length); // Debug log
+            
             setDiscussions(response.data);
             setCurrentPage(1);
         } catch (error) {
             console.error("Error fetching discussions:", error);
+            setSearchMessage("Error loading discussions. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -190,6 +219,19 @@ export default function Discussions() {
         }
     };
 
+    const handleFilterChange = (filter) => {
+        console.log('Filter changed to:', filter); // Debug log
+        setCurrentFilter(filter);
+        setCurrentPage(1);
+    };
+
+    const handleCategoryChange = (category) => {
+        console.log('Category changed to:', category); // Debug log
+        setSelectedCategory(category);
+        setCurrentPage(1);
+        setSearchQuery(""); // Clear search when changing category
+    };
+
     const getPageNumbers = () => {
         const pages = [];
         const maxPagesToShow = 5;
@@ -251,11 +293,7 @@ export default function Discussions() {
                             className={`p-2 text-gray-500 flex items-center gap-2 hover:bg-blue-100 rounded cursor-pointer ${
                                 selectedCategory === cat.value ? "bg-blue-200 text-blue-800 font-semibold" : ""
                             }`}
-                            onClick={() => {
-                                setSelectedCategory(cat.value);
-                                setCurrentPage(1);
-                                setSearchQuery(""); // Clear search when changing category
-                            }}
+                            onClick={() => handleCategoryChange(cat.value)}
                         >
                             {categoryIcons[cat.value] || <FaComments />} {cat.label}
                         </div>
@@ -305,10 +343,7 @@ export default function Discussions() {
                         onSearch={setSearchQuery}
                         onNewDiscussionClick={handleNewDiscussion}
                         searchQuery={searchQuery}
-                        onFilterChange={(filter) => {
-                            setCurrentFilter(filter);
-                            setCurrentPage(1);
-                        }}
+                        onFilterChange={handleFilterChange}
                         currentFilter={currentFilter}
                     />
                     
@@ -334,6 +369,12 @@ export default function Discussions() {
                                     Found {discussions.length} result{discussions.length !== 1 ? 's' : ''} for "{searchQuery}"
                                 </div>
                             )}
+                            
+                            {/* Show current filter */}
+                            <div className="text-sm text-gray-500">
+                                Showing: <span className="font-semibold capitalize">{currentFilter}</span> discussions
+                                {selectedCategory && ` in ${selectedCategory}`}
+                            </div>
                             
                             {paginatedDiscussions.map((discussion) => (
                                 <DiscussionCard 

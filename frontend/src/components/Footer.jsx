@@ -1,6 +1,8 @@
 import { FaFacebookF,FaTwitter, FaLinkedinIn, FaYoutube, FaPaperPlane } from "react-icons/fa";
 import {ChevronRight} from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import api from "../api/axios";
 
 export default function Footer() {
     return(
@@ -23,32 +25,23 @@ export default function Footer() {
             <Link to="/" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
                 <ChevronRight size={16} /> Home
             </Link>
-            <Link to="/blogs" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
+            <Link to="/discussions" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
                 <ChevronRight size={16} /> Forums
             </Link>
             <Link to="/members" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
                 <ChevronRight size={16} /> Members
             </Link>
-            <Link to="/members" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
-                <ChevronRight size={16} /> Rules
+            <Link to="/blogs" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
+                <ChevronRight size={16} /> Blogs
             </Link>
             </div>
 
             {/* Column 3 */}
             <div className="flex flex-col gap-1">
             <div className="text-base font-bold">Categories</div>
-            <Link to="/" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
-                <ChevronRight size={16} /> Technology
-            </Link>
-            <Link to="/blogs" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
-                <ChevronRight size={16} /> Health
-            </Link>
-            <Link to="/members" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
-                <ChevronRight size={16} /> Business
-            </Link>
-            <Link to="/members" className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
-                <ChevronRight size={16} /> Culture
-            </Link>
+            {/** Dynamic categories loaded from discussions */}
+            {/** Render up to 6 categories */}
+            <DynamicCategories />
             </div>
 
             {/* Column 4 */}
@@ -84,5 +77,52 @@ export default function Footer() {
             &copy;2025 Community Forum. All rights reserved.
         </p>
         </footer>
+    )
+}
+
+function DynamicCategories(){
+    const [cats, setCats] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let mounted = true;
+        const fetchCats = async () => {
+            try{
+                setLoading(true);
+                const res = await api.get('/discussions', { params: { skip:0, limit: 1000 } });
+                const seen = new Set();
+                const list = [];
+                res.data.forEach(d => {
+                    let c = d.category;
+                    if (Array.isArray(c)) c = c[0];
+                    if (!c) c = 'General';
+                    if (!seen.has(c)){
+                        seen.add(c);
+                        list.push(c);
+                    }
+                });
+                if(mounted) setCats(list.slice(0,6));
+            }catch(err){
+                console.error('Error fetching categories for footer', err);
+                if(mounted) setCats([]);
+            }finally{
+                if(mounted) setLoading(false);
+            }
+        }
+        fetchCats();
+        return () => { mounted = false }
+    },[])
+
+    if(loading) return <div className="text-gray-400">Loading...</div>
+    if(cats.length === 0) return <div className="text-gray-400">No categories</div>
+
+    return (
+        <>
+            {cats.map((cat, idx) => (
+                <Link key={idx} to={`/discussions?category=${encodeURIComponent(cat)}`} className="flex items-center gap-1 text-gray-400 hover:text-gray-300">
+                    <ChevronRight size={16} /> {cat}
+                </Link>
+            ))}
+        </>
     )
 }
