@@ -147,51 +147,7 @@ export default function Member() {
             </div>
           </div>
 
-          {/* Search and Filter Section */}
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Search */}
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name or username..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Filter by Posts */}
-              <select
-                value={minPosts}
-                onChange={handlePostsFilter}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-              >
-                <option value={0}>All Posts</option>
-                <option value={1}>1+ Posts</option>
-                <option value={5}>5+ Posts</option>
-                <option value={10}>10+ Posts</option>
-                <option value={20}>20+ Posts</option>
-                <option value={50}>50+ Posts</option>
-              </select>
-
-              {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={handleSort}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-              >
-                <option value="posts">Sort by Posts</option>
-                <option value="votes">Sort by Votes</option>
-                <option value="views">Sort by Views</option>
-                <option value="name">Sort by Name</option>
-              </select>
-            </div>
-            <p className="text-sm text-gray-500 mt-3">
-              Showing {filteredMembers.length} of {members.length} members
-            </p>
-          </div>
+          
 
           {/* Members Table/Grid */}
           {filteredMembers.length > 0 ? (
