@@ -76,7 +76,7 @@ Explore and connect with community members. View contributor profiles, activity,
 ### User Profile & Settings
 
 Manage your profile, view your contributions, edit personal information, change your password, and track your activity on the platform.
-![User Profile](./assets/User.png)
+![User Profile](./assets/UserProfile.png)
 
 ---
 
