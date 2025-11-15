@@ -23,11 +23,11 @@ Secure user authentication with JWT-based sessions. New users can register an ac
 
 **Register**  
 Create a new account with email, password, and profile information.
-<img src="./Register.png" width="300"/>
+![Register](./assets/Register.png)
 
 **Sign In**  
 Log in securely with your email and password.
-<img src="./Singin.png" width="300"/>
+![Sign In](./assets/SignIn.png)
 
 ---
 
