@@ -1,4 +1,4 @@
-# SolveHub – Full-Stack Q&A Platform
+# SolveHub  
 
 SolveHub is a community-driven Q&A and knowledge-sharing platform that empowers users to ask questions, share insights through blogs, join topic-based discussions, and earn recognition for their contributions. It fosters collaborative learning and professional growth in a developer-focused community.
 
@@ -23,11 +23,11 @@ Secure user authentication with JWT-based sessions. New users can register an ac
 
 **Register**  
 Create a new account with email, password, and profile information.
-![Register](./assets/Register.png)
+<img src="./Register.png" width="300"/>
 
 **Sign In**  
 Log in securely with your email and password.
-![Sign In](./assets/SignIn.png)
+<img src="./Singin.png" width="300"/>
 
 ---
 
